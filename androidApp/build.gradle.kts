@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.ksp)
 }
 
 kotlin {
@@ -14,8 +15,7 @@ dependencies {
     implementation(project(":shared"))
     implementation(libs.coroutines.android)
     implementation(libs.room.runtime)
-    // Java Room declarations use javac processing, without a KSP plugin in the SDK.
-    annotationProcessor(libs.room.compiler)
+    ksp(libs.room.compiler)
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodelCompose)

@@ -1,22 +1,21 @@
-package com.siosin.bluecon.data;
+package com.siosin.bluecon.data
 
-import androidx.room.Dao;
-import androidx.room.Insert;
-import androidx.room.OnConflictStrategy;
-import androidx.room.Query;
-import java.util.List;
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
 
 @Dao
-public interface HistoryDao {
+interface HistoryDao {
     @Query("SELECT * FROM device_history ORDER BY lastSeenAtMillis DESC, id ASC")
-    List<HistoryEntity> getAll();
+    fun getAll(): List<HistoryEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void upsert(List<HistoryEntity> devices);
+    fun upsert(devices: List<HistoryEntity>)
 
     @Query("DELETE FROM device_history")
-    void clear();
+    fun clear()
 
     @Query("DELETE FROM device_history WHERE id NOT IN (SELECT id FROM device_history ORDER BY lastSeenAtMillis DESC, id ASC LIMIT 2000)")
-    void trim();
+    fun trim()
 }

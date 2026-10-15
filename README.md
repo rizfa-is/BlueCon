@@ -59,7 +59,7 @@ Tidak ada permission background location, foreground service, advertise, atau no
 
 Kotlin Multiplatform, Compose Multiplatform Material 3, AndroidX ViewModel, Kotlin Coroutines/StateFlow, Android BLE API, dan Room. Versi berada di `gradle/libs.versions.toml`.
 
-Persistence Android memakai deklarasi Entity/DAO/Database Java dengan annotation processor Room (`javac`), sementara repository dan aplikasi memakai Kotlin. Ini menjaga annotation processing di host Android dan tidak menambahkan KSP/plugin Room ke SDK. Schema database saat ini versi 1; ekspor schema belum diaktifkan dan perubahan berikutnya memerlukan migration yang sesuai.
+Persistence Android memakai Entity, DAO, dan Database Kotlin dengan Kotlin Symbol Processing (KSP2) untuk menghasilkan implementasi Room. KSP diterapkan hanya pada modul `androidApp`; SDK tidak membawa dependensi Room atau annotation processing. Operasi DAO tetap dijalankan melalui repository di dispatcher IO, dengan transaksi untuk upsert dan trim. Schema database saat ini versi 1; ekspor schema belum diaktifkan dan perubahan berikutnya memerlukan migration yang sesuai.
 
 ## Menjalankan sendiri
 
