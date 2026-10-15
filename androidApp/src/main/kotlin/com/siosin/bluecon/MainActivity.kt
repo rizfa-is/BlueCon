@@ -22,6 +22,7 @@ import com.siosin.bluecon.bluetooth.ScanBlocker
 import com.siosin.bluecon.presentation.ScannerViewModel
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     private val container get() = (application as BlueConApplication).container
@@ -42,9 +43,9 @@ class MainActivity : ComponentActivity() {
         } else {
             val permanent = missing.any { !shouldShowRequestPermissionRationale(it) }
             hostMessage = if (permanent) {
-                "Sebagian izin diblokir. Izinkan Perangkat sekitar dan Lokasi presisi melalui pengaturan aplikasi."
+                "Some permissions are blocked. Allow Nearby devices and precise location in app settings."
             } else {
-                "Izin belum lengkap. Scan memerlukan perangkat sekitar dan lokasi presisi untuk estimasi kedekatan. Tekan Mulai untuk mencoba lagi."
+                "Permissions are incomplete. Tap Start scan to allow Nearby devices and precise location."
             }
             container.scanner.start() // Publishes the precise blocker; no scan starts without permission.
         }
@@ -66,7 +67,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         scannerViewModel = ViewModelProvider(this, factory)[ScannerViewModel::class.java]
-        val dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+        val dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM, Locale.ENGLISH)
         setContent {
             val ui by scannerViewModel.state.collectAsStateWithLifecycle()
             BackHandler(enabled = ui.selectedId != null) { scannerViewModel.back() }
@@ -90,7 +91,7 @@ class MainActivity : ComponentActivity() {
                     preferences.getBoolean(it, false) && !shouldShowRequestPermissionRationale(it)
                 }
                 if (permanentlyDenied) {
-                    hostMessage = "Izin diperlukan untuk scan. Buka pengaturan aplikasi dan izinkan Perangkat sekitar serta Lokasi presisi."
+                    hostMessage = "Open app settings and allow Nearby devices and precise location before scanning."
                 } else {
                     showRationale(blocker.permissions)
                 }
@@ -100,9 +101,9 @@ class MainActivity : ComponentActivity() {
                 try {
                     bluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
                 } catch (_: SecurityException) {
-                    hostMessage = "Izin Bluetooth berubah. Tekan Mulai untuk memeriksa kembali izin."
+                    hostMessage = "Bluetooth permission changed. Tap Start scan to review permissions."
                 } catch (_: android.content.ActivityNotFoundException) {
-                    hostMessage = "Aktifkan Bluetooth melalui pengaturan perangkat, lalu tekan Mulai."
+                    hostMessage = "Enable Bluetooth in device settings, then tap Start scan."
                 }
             }
             ScanBlocker.LocationOff -> {
@@ -110,7 +111,7 @@ class MainActivity : ComponentActivity() {
                 try {
                     startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                 } catch (_: android.content.ActivityNotFoundException) {
-                    hostMessage = "Aktifkan layanan lokasi melalui pengaturan perangkat, lalu tekan Mulai."
+                    hostMessage = "Enable location services in device settings, then tap Start scan."
                 }
             }
             ScanBlocker.Unsupported -> container.scanner.start()
@@ -120,10 +121,10 @@ class MainActivity : ComponentActivity() {
     private fun showRationale(permissions: List<String>) {
         if (activeDialog?.isShowing == true) return
         activeDialog = AlertDialog.Builder(this)
-            .setTitle("Izin untuk mencari perangkat")
-            .setMessage("BlueCon memakai Bluetooth untuk memindai advertising BLE dan izin lokasi presisi untuk memperkirakan kedekatan dari RSSI. Tidak ada scan di background. Pilih lokasi presisi saat diminta.")
-            .setNegativeButton("Batal", null)
-            .setPositiveButton("Lanjutkan") { _, _ ->
+            .setTitle("Permissions for scanning")
+            .setMessage("BlueCon uses Bluetooth to scan BLE advertisements and precise location permission to estimate proximity from signal strength. Scanning stops when the app is in the background. Choose precise location when prompted.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Continue") { _, _ ->
                 val editor = preferences.edit()
                 permissions.forEach { editor.putBoolean(it, true) }
                 editor.apply()

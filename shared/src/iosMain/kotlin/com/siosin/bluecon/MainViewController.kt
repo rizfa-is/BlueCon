@@ -6,5 +6,5 @@ import androidx.compose.material3.Text
 
 // iOS is parked while the SDK's Android backend is being developed.
 fun MainViewController() = ComposeUIViewController {
-    MaterialTheme { Text("BlueCon: implementasi Bluetooth saat ini tersedia untuk Android.") }
+    MaterialTheme { Text("BlueCon Bluetooth scanning is currently available on Android.") }
 }

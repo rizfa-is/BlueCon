@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.siosin.bluecon.bluetooth.BleDevice
 import com.siosin.bluecon.bluetooth.ScanState
+import com.siosin.bluecon.bluetooth.ProximityZone
 import com.siosin.bluecon.domain.DeviceHistoryRepository
 import com.siosin.bluecon.domain.DeviceSort
 import com.siosin.bluecon.domain.HistoryState
@@ -26,11 +27,14 @@ data class ScannerUiState(
     val sort: DeviceSort = DeviceSort.NAMED_FIRST,
     val minimumRssi: Int? = null,
     val selectedId: String? = null,
+    val selectedSnapshot: BleDevice? = null,
     val tab: ScannerTab = ScannerTab.SCANNER,
 ) {
     val visibleDevices get() = filterDevices(devices, query, minimumRssi, sort)
     val visibleHistory get() = filterDeviceHistory(history.devices, historyQuery)
     val selectedDevice get() = devices.firstOrNull { it.id == selectedId }
+        ?: selectedSnapshot?.takeIf { it.id == selectedId }
+    val selectedHistoryDevice get() = history.devices.firstOrNull { it.id == selectedId }
     val scanning get() = scanState == ScanState.Scanning
 }
 
@@ -42,7 +46,15 @@ class ScannerViewModel(
     val state = mutableState.asStateFlow()
 
     init {
-        viewModelScope.launch { scanDevices.devices.collect { devices -> mutableState.update { it.copy(devices = devices) } } }
+        viewModelScope.launch {
+            scanDevices.devices.collect { devices ->
+                mutableState.update { current ->
+                    val selected = devices.firstOrNull { it.id == current.selectedId }
+                        ?: current.selectedSnapshot?.copy(isStale = true, zone = ProximityZone.LOST)
+                    current.copy(devices = devices, selectedSnapshot = selected)
+                }
+            }
+        }
         viewModelScope.launch { scanDevices.state.collect { status -> mutableState.update { it.copy(scanState = status) } } }
         viewModelScope.launch { history.state.collect { saved -> mutableState.update { it.copy(history = saved) } } }
     }
@@ -54,8 +66,8 @@ class ScannerViewModel(
     fun searchHistory(value: String) { mutableState.update { it.copy(historyQuery = value) } }
     fun setSort(value: DeviceSort) { mutableState.update { it.copy(sort = value) } }
     fun setMinimumRssi(value: Int?) { mutableState.update { it.copy(minimumRssi = value) } }
-    fun select(id: String) { mutableState.update { it.copy(selectedId = id) } }
-    fun back() { mutableState.update { it.copy(selectedId = null) } }
-    fun changeTab(tab: ScannerTab) { mutableState.update { it.copy(tab = tab, selectedId = null) } }
+    fun select(id: String) { mutableState.update { it.copy(selectedId = id, selectedSnapshot = it.devices.firstOrNull { device -> device.id == id }) } }
+    fun back() { mutableState.update { it.copy(selectedId = null, selectedSnapshot = null) } }
+    fun changeTab(tab: ScannerTab) { mutableState.update { it.copy(tab = tab, selectedId = null, selectedSnapshot = null) } }
     fun clearHistory() { viewModelScope.launch { history.clear() } }
 }

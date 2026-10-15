@@ -57,12 +57,14 @@ class ScannerViewModelTest {
             scanner.devices.value = emptyList()
             runCurrent()
             assertEquals("AA", model.state.value.selectedId)
-            assertNull(model.state.value.selectedDevice)
+            assertEquals(true, model.state.value.selectedDevice?.isStale)
+            assertEquals(-60, model.state.value.selectedDevice?.rawRssi)
             scanner.devices.value = listOf(BleDevice("AA", "Beacon", -50, -50.0, proximityZone(-50), 200))
             runCurrent()
             assertEquals(-50, model.state.value.selectedDevice?.rawRssi)
             model.changeTab(ScannerTab.HISTORY)
             assertNull(model.state.value.selectedId)
+            assertNull(model.state.value.selectedSnapshot)
         } finally {
             model.viewModelScope.cancel()
             Dispatchers.resetMain()
@@ -112,6 +114,29 @@ class ScannerViewModelTest {
             assertEquals("beacon", model.state.value.query)
             assertEquals("bb:02", model.state.value.historyQuery)
             assertEquals(listOf("BB", "AA"), model.state.value.visibleDevices.map { it.id })
+        } finally {
+            model.viewModelScope.cancel()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun selectingASavedAddressDoesNotReuseAnotherDevicesAdvertisingDetails() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val scanner = FakeScanner()
+        val history = FakeHistory()
+        val model = ScannerViewModel(ScanDevices(scanner), history)
+        try {
+            scanner.devices.value = listOf(BleDevice("LIVE", "Sensor", -50, -50.0, proximityZone(-50), 200))
+            history.state.value = HistoryState(listOf(DeviceHistory("SAVED", "Saved sensor", -70, 100)))
+            runCurrent()
+            model.select("LIVE")
+            assertEquals("LIVE", model.state.value.selectedDevice?.id)
+            model.select("SAVED")
+            assertNull(model.state.value.selectedDevice)
+            assertEquals("Saved sensor", model.state.value.selectedHistoryDevice?.name)
+            model.back()
+            assertNull(model.state.value.selectedHistoryDevice)
         } finally {
             model.viewModelScope.cancel()
             Dispatchers.resetMain()

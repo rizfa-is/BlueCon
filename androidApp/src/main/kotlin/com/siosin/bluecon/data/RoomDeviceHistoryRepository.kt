@@ -73,7 +73,7 @@ class RoomDeviceHistoryRepository(
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
-                    mutableState.value = mutableState.value.copy(error = "Riwayat belum dapat disimpan atau dibaca. Coba kembali.")
+                    mutableState.value = mutableState.value.copy(error = "Unable to read or save history. Scan again to retry.")
                 }
             }
         }
