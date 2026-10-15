@@ -82,4 +82,42 @@ class DeviceTrackerTest {
             inputs.map(::proximityZone),
         )
     }
+
+    @Test
+    fun observationsIncludeLatestAdvertisingDataAndPreserveFirstSeen() {
+        val tracker = DeviceTracker(EmaSignalProcessor())
+        val first = AdvertisementData(connectable = true, txPowerDbm = -8, serviceUuids = listOf("service-a"))
+        tracker.record("A", "Sensor", -60, 100, 100, config, first)
+        val latest = AdvertisementData(connectable = false, manufacturerData = mapOf(76 to "01 FF"))
+        tracker.record("A", null, -70, 200, 200, config, latest)
+        val device = tracker.snapshot(200, config).single()
+        assertEquals(latest, device.advertisement)
+        assertEquals(100L, device.firstSeenAtMillis)
+        assertEquals(200L, device.lastSeenAtMillis)
+        assertEquals(2L, device.observationCount)
+        assertEquals(listOf(-60, -70), device.signalHistory.map { it.rssi })
+    }
+
+    @Test
+    fun signalHistoryIsBoundedAndAStaleGapStartsANewWindow() {
+        val tracker = DeviceTracker(EmaSignalProcessor())
+        repeat(100) { index -> tracker.record("A", null, -60, index.toLong(), index.toLong(), config) }
+        val device = tracker.snapshot(100, config).single()
+        assertEquals(48, device.signalHistory.size)
+        assertEquals(52L, device.signalHistory.first().elapsedMillis)
+        assertEquals(100L, device.observationCount)
+        tracker.record("A", null, -40, 3_000, 3_000, config)
+        val recovered = tracker.snapshot(3_000, config).single()
+        assertEquals(listOf(RssiSample(-40, 3_000)), recovered.signalHistory)
+        assertEquals(101L, recovered.observationCount)
+    }
+
+    @Test
+    fun delayedReportsDoNotChangeSignalHistoryOrReportCount() {
+        val tracker = DeviceTracker(EmaSignalProcessor())
+        tracker.record("A", "Current", -50, 200, 200, config)
+        tracker.record("A", "Delayed", -90, 100, 100, config)
+        assertEquals(1L, tracker.snapshot(200, config).single().observationCount)
+        assertEquals(listOf(RssiSample(-50, 200)), tracker.snapshot(200, config).single().signalHistory)
+    }
 }

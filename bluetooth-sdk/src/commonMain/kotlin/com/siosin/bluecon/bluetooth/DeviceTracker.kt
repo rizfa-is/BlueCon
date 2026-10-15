@@ -8,6 +8,7 @@ internal class DeviceTracker(private val processor: SignalProcessor) {
     fun record(
         id: String, name: String?, rssi: Int,
         wallTimeMillis: Long, elapsedMillis: Long, config: ScanConfig,
+        advertisement: AdvertisementData = AdvertisementData(),
     ) {
         // Android uses 127 for unavailable RSSI. Ignore invalid/unavailable values.
         if (rssi !in -127..126 || id.isBlank()) return
@@ -18,14 +19,20 @@ internal class DeviceTracker(private val processor: SignalProcessor) {
             val oldest = entries.minByOrNull { it.value.elapsedMillis }?.key
             if (oldest != null) { entries.remove(oldest); processor.forget(oldest) }
         }
-        if (previous != null && elapsedMillis - previous.elapsedMillis >= config.staleAfterMillis) {
+        val newSignalWindow = previous == null || elapsedMillis - previous.elapsedMillis >= config.staleAfterMillis
+        if (previous != null && newSignalWindow) {
             processor.forget(id)
         }
+        val recent = if (newSignalWindow) emptyList() else previous?.device?.signalHistory.orEmpty()
         entries[id] = Entry(
             BleDevice(
                 id, name?.takeIf { it.isNotBlank() } ?: previous?.device?.name,
                 rssi, processor.process(id, rssi), proximityZone(rssi), wallTimeMillis,
                 observedAtElapsedMillis = elapsedMillis,
+                advertisement = advertisement,
+                firstSeenAtMillis = previous?.device?.firstSeenAtMillis ?: wallTimeMillis,
+                observationCount = (previous?.device?.observationCount ?: 0) + 1,
+                signalHistory = recent.takeLast(47) + RssiSample(rssi, elapsedMillis),
             ),
             elapsedMillis,
         )

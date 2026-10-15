@@ -1,8 +1,8 @@
 # BlueCon Bluetooth SDK
 
-Library KMP dengan kontrak/algoritma portable dan implementasi BLE Android API 24+. SDK tidak bergantung pada UI aplikasi, database, atau DI framework.
+KMP library with portable models and signal processing, plus a foreground BLE advertising scanner for Android API 24+. The library has no UI, database, Activity, or DI framework dependency.
 
-## Dependency lokal
+## Integration
 
 ```kotlin
 dependencies {
@@ -10,39 +10,26 @@ dependencies {
 }
 ```
 
-Untuk konsumen KMP, letakkan dependency tersebut di source set yang menggunakannya. Akses `AndroidBluetoothScanner` hanya dari source set Android. Plugin `maven-publish` sudah dipasang dengan group `com.siosin.bluecon` dan version `0.1.0`; publikasi remote belum dikonfigurasi atau dilakukan. Publikasi target iOS memerlukan host yang sesuai.
-
-## Integrasi Android
+For KMP consumers, add the dependency to the relevant source set. Instantiate `AndroidBluetoothScanner` from Android code and keep one instance per owner, outside recomposition:
 
 ```kotlin
-// Buat satu instance sesuai lifetime fitur/aplikasi, bukan setiap recomposition.
-val scanner = AndroidBluetoothScanner(
-    context = applicationContext,
-    derivesPhysicalLocation = true,
-)
-
-val blocker = scanner.readinessBlocker()
-// Host menyelesaikan blocker dengan Activity Result API/settings sebelum Start.
-if (blocker == null) {
-    scanner.start(ScanConfig(durationMillis = 120_000))
-}
-
-// Collect menggunakan lifecycle/scope milik host.
+val scanner = AndroidBluetoothScanner(applicationContext, derivesPhysicalLocation = true)
+// Resolve missing permissions, Bluetooth, or location settings in the host first.
+if (scanner.readinessBlocker() == null) scanner.start(ScanConfig(durationMillis = 120_000))
 scope.launch { scanner.devices.collect { devices -> /* update state */ } }
-scope.launch { scanner.state.collect { state -> /* render status/error */ } }
-
-// Hentikan saat host masuk background; kecualikan pergantian konfigurasi.
+scope.launch { scanner.state.collect { state -> /* display status */ } }
 scanner.stop(StopReason.BACKGROUND)
-
-// Panggil hanya ketika pemilik instance benar-benar selesai.
+// Release only when the owner is permanently finished, not on rotation.
 scanner.close()
 ```
 
-`start` idempotent selama sesi aktif. Konfigurasi baru diterapkan pada sesi berikutnya; navigasi layar tidak memulai ulang scanner. Setelah `close`, buat instance baru jika diperlukan. Method sesi dimarshalling ke main thread; koleksi StateFlow aman dari scope konsumen. Start tidak memberikan jaminan hasil langsung: pantau `ScanState`.
+Start is idempotent while scanning. New configuration takes effect on the next session. Flow collection does not start another scan. Stopped sessions retain their last snapshot; a new session clears it. Session methods run on the main thread. Create a new instance after closing.
 
-## Kontrak manifest dan izin
+`maven-publish` is configured with group `com.siosin.bluecon`, version `0.1.0`. No remote publication has been configured or performed. iOS targets provide shared contracts and algorithms only; no iOS BLE backend is implemented.
 
-SDK tidak menambahkan permission ke manifest konsumen. Host dengan target SDK modern dan `derivesPhysicalLocation=true` membutuhkan:
+## Permissions
+
+The host owns manifest declarations, runtime requests, rationale, settings navigation, and lifecycle decisions. For a modern-target host with physical proximity estimation:
 
 ```xml
 <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
@@ -53,23 +40,39 @@ SDK tidak menambahkan permission ke manifest konsumen. Host dengan target SDK mo
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 ```
 
-Gunakan `requiredPermissions()` untuk permission runtime sesuai OS. CONNECT diperlukan untuk status adapter. SDK memeriksa ulang izin selama sesi dan menangani SecurityException saat kondisi berubah. Penolakan permanen/rationale ditentukan oleh host; SDK tidak memiliki Activity.
+Use `requiredPermissions()` for the runtime list. CONNECT is used to inspect adapter state, even though the scanner does not connect over GATT. The scanner rechecks readiness while active and handles permission changes during cleanup.
 
-Jika `derivesPhysicalLocation=false`, host harus benar-benar tidak menggunakan hasil scan untuk memperoleh lokasi fisik, memasang `neverForLocation` pada SCAN, dan membatasi izin lokasi legacy sesuai kebutuhan. Android dapat menyaring sebagian beacon dalam mode tersebut. Jangan mengubah hanya boolean tanpa menyelaraskan manifest dan penggunaan data.
+With `derivesPhysicalLocation=false`, align the host's actual data use and manifest with `neverForLocation`. Android may filter some beacons in that mode. Do not change the boolean independently of the manifest policy. Background scanning and its permission/service requirements are outside this implementation.
 
-## Pemrosesan dan batas
+## Device data
 
-- `ScanConfig` memvalidasi durasi 1 detik hingga 10 menit; default sesi 2 menit.
-- Snapshot default setiap 300 ms, stale setelah 8 detik, eviction setelah 60 detik, maksimal 500 perangkat.
-- ScanFilter service UUID opsional. Untuk discovery umum gunakan set kosong; filter nama/RSSI sebaiknya dilakukan terhadap snapshot.
-- `BleDevice.id` adalah alamat pengamatan, `lastSeenAtMillis` waktu untuk tampilan/persistence, dan `observedAtElapsedMillis` waktu monoton dalam boot saat ini. Jangan persist waktu monoton sebagai tanggal.
-- `zone` diturunkan dari RSSI mentah sesuai tabel studi kasus; `smoothedRssi` adalah sinyal EMA untuk visualisasi. Alamat acak dapat terlihat sebagai perangkat baru.
-- `Stopped` mempertahankan snapshot terakhir. Anggap hasil tersebut sebagai pengamatan terakhir, bukan pengukuran live. Sesi baru mengosongkan cache dan state EMA.
-- Error frekuensi scan dikembalikan ke host. SDK tidak melakukan auto-retry atau loop restart.
-- Scanner belum menyediakan GATT, pairing, background service, atau backend iOS.
+`BleDevice` is declared in `src/commonMain/kotlin/com/siosin/bluecon/bluetooth/BleDevice.kt`, imported as `com.siosin.bluecon.bluetooth.BleDevice`.
 
-## Extension point untuk NDK
+| Field | Meaning |
+| --- | --- |
+| `id`, `name` | Observed address and advertised name; neither proves permanent identity. |
+| `rawRssi`, `smoothedRssi`, `zone` | Current RSSI, EMA, and the study-case proximity range. No calibrated meter measurement. |
+| `firstSeenAtMillis`, `lastSeenAtMillis` | Calendar timestamps for the current cache window. |
+| `observedAtElapsedMillis` | Monotonic observation time in this boot; do not store it as a calendar date. |
+| `observationCount` | Accepted Android scan reports in the current cache window, not transmitted packet count. |
+| `signalHistory` | Up to 48 recent timestamped RSSI reports. A stale gap resets this window. |
+| `advertisement` | Latest scan record and radio fields exposed by Android. |
 
-Implementasikan `SignalProcessor` dan inject lewat constructor bila benchmark di perangkat membuktikan manfaatnya. Method dipanggil serial oleh scanner. Implementasi harus cepat, tidak memblokir main thread, dan tidak menyimpan state tanpa batas; `forget` dan `reset` digunakan untuk cleanup.
+Advertising details include connectability, legacy/extended format, TX power, primary/secondary PHY, advertising SID, complete/truncated data status, AD flags, advertised service UUIDs, company identifiers with manufacturer payloads, service payloads, and raw scan-record hex. Values unavailable in the record or OS remain null/empty. Android 26+ radio APIs are guarded; ScanRecord data remains available on API 24-25.
 
-Untuk komputasi berat, rancang adapter pemrosesan batch di worker sebelum memindahkannya ke NDK, lalu pertahankan implementasi Kotlin sebagai fallback. Memanggil JNI per sampel tanpa pengukuran tidak dijamin lebih cepat. Implementasi NDK/Python belum disertakan.
+TX power uses the AD field when present and otherwise the extended advertising header. Company identifiers describe the advertising data, not a verified product manufacturer. Advertised UUIDs do not represent a completed GATT service discovery. Battery level, firmware, MTU, pairing, and connection state are not inferred from these fields. The SDK does not estimate the configured advertising interval from callback frequency.
+
+## Resource limits and extensions
+
+Default configuration: two-minute session, snapshots every 300 ms, stale after eight seconds, eviction after 60 seconds, and at most 500 cached devices. The signal history is capped per device. Optional service UUID filters and a higher-responsiveness scan mode are available in `ScanConfig`.
+
+Implement `SignalProcessor` only when device profiling shows a need. Calls are serialized; an implementation must not block the main thread and must release per-device state in `forget`/`reset`. Heavy native work would need a worker/batching adapter. No NDK or Python runtime is included, and no performance improvement has been benchmarked.
+
+## References
+
+- [Android ScanResult](https://developer.android.com/reference/android/bluetooth/le/ScanResult)
+- [Android ScanRecord](https://developer.android.com/reference/android/bluetooth/le/ScanRecord)
+- [Bluetooth permissions](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions)
+- [nRF Connect for Android](https://github.com/nordicsemi/Android-nRF-Connect)
+
+Builds and tests are left to the project owner, as requested.

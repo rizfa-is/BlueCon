@@ -123,7 +123,7 @@ class AndroidBluetoothScanner(
                 ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID.fromString(it))).build()
             }
         } catch (_: IllegalArgumentException) {
-            mutableState.value = ScanState.Failed(null, "Service UUID tidak valid.")
+            mutableState.value = ScanState.Failed(null, "Invalid service UUID.")
             return@onMain
         }
         this.config = config
@@ -186,7 +186,7 @@ class AndroidBluetoothScanner(
         } catch (_: SecurityException) {
             finish(ScanState.Blocked(ScanBlocker.MissingPermissions(requiredPermissions())))
         } catch (error: RuntimeException) {
-            finish(ScanState.Failed(null, error.message ?: "Scanner tidak dapat dimulai."))
+            finish(ScanState.Failed(null, error.message ?: "Unable to start scanning."))
         }
     }
 
@@ -208,11 +208,12 @@ class AndroidBluetoothScanner(
                 wallTimeMillis = System.currentTimeMillis() - (now - elapsed),
                 elapsedMillis = elapsed,
                 config = config,
+                advertisement = result.advertisementData(),
             )
         } catch (_: SecurityException) {
             finish(ScanState.Blocked(ScanBlocker.MissingPermissions(requiredPermissions())))
         } catch (error: RuntimeException) {
-            finish(ScanState.Failed(null, error.message ?: "Data advertising tidak dapat diproses."))
+            finish(ScanState.Failed(null, error.message ?: "Unable to process the advertising report."))
         }
     }
 
@@ -273,10 +274,10 @@ class AndroidBluetoothScanner(
 }
 
 private fun scanErrorMessage(code: Int): String = when (code) {
-    ScanCallback.SCAN_FAILED_ALREADY_STARTED -> "Pemindaian sudah berjalan."
-    ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> "Registrasi scanner gagal. Coba matikan dan nyalakan Bluetooth."
-    ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED -> "Mode pemindaian tidak didukung perangkat ini."
-    5 -> "Sumber daya scanner sedang digunakan aplikasi lain."
-    6 -> "Scan terlalu sering dimulai. Tunggu sebelum mencoba kembali."
-    else -> "Pemindaian gagal (kode $code)."
+    ScanCallback.SCAN_FAILED_ALREADY_STARTED -> "Scanning is already running."
+    ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> "Scanner registration failed. Turn Bluetooth off and on, then try again."
+    ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED -> "This device does not support the requested scan mode."
+    5 -> "Scanner resources are in use. Stop other Bluetooth scans and try again."
+    6 -> "Scanning was started too often. Wait before trying again."
+    else -> "Scan failed (code $code)."
 }

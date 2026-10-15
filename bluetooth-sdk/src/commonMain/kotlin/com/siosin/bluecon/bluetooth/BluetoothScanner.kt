@@ -48,36 +48,3 @@ sealed interface ScanBlocker {
     data object LocationOff : ScanBlocker
     data class MissingPermissions(val permissions: List<String>) : ScanBlocker
 }
-
-/** [id] is a discovery identifier, not a guaranteed permanent physical-device identity. */
-data class BleDevice(
-    val id: String,
-    val name: String?,
-    val rawRssi: Int,
-    val smoothedRssi: Double,
-    /** Zone follows raw RSSI to match the study-case thresholds. */
-    val zone: ProximityZone,
-    val lastSeenAtMillis: Long,
-    val isStale: Boolean = false,
-    /** Monotonic observation time within the current boot; never persist as wall time. */
-    val observedAtElapsedMillis: Long = 0,
-)
-
-enum class ProximityZone(val label: String, val distanceLabel: String) {
-    VERY_CLOSE("Sangat dekat", "< 1 m"),
-    CLOSE("Dekat", "1 - 3 m"),
-    NEARBY("Cukup dekat", "3 - 10 m"),
-    FAR("Jauh", "10 - 20 m"),
-    VERY_FAR("Sangat jauh", "> 20 m"),
-    LOST("Sinyal hilang", "Di luar jangkauan"),
-}
-
-/** Each boundary belongs to the stronger zone: -30 is VERY_CLOSE, -90 VERY_FAR. */
-fun proximityZone(rssi: Int): ProximityZone = when {
-    rssi >= -30 -> ProximityZone.VERY_CLOSE
-    rssi >= -50 -> ProximityZone.CLOSE
-    rssi >= -70 -> ProximityZone.NEARBY
-    rssi >= -80 -> ProximityZone.FAR
-    rssi >= -90 -> ProximityZone.VERY_FAR
-    else -> ProximityZone.LOST
-}
