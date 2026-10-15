@@ -33,12 +33,8 @@ import com.siosin.bluecon.domain.DeviceSort
 import com.siosin.bluecon.presentation.ScannerTab
 import com.siosin.bluecon.presentation.ScannerUiState
 import com.siosin.bluecon.presentation.ScannerViewModel
+import com.siosin.bluecon.presentation.theme.BlueConTheme
 import kotlin.math.roundToInt
-
-private val Mint = Color(0xFF8DE4C2)
-private val Muted = Color(0xFFA9BDB6)
-private val Panel = Color(0xFF15241F)
-private val Background = Color(0xFF0B1511)
 
 @Composable
 fun App(
@@ -50,14 +46,12 @@ fun App(
 ) {
     val ui by viewModel.state.collectAsStateWithLifecycle()
     var confirmClear by remember { mutableStateOf(false) }
-    MaterialTheme(colorScheme = darkColorScheme(
-        primary = Mint, onPrimary = Background, background = Background,
-        surface = Panel, onSurface = Color(0xFFF0F6F3), secondary = Mint,
-    )) {
+    BlueConTheme {
+        val colors = MaterialTheme.colorScheme
         Scaffold(
-            containerColor = Background,
+            containerColor = colors.background,
             bottomBar = {
-                if (ui.selectedId == null) NavigationBar(containerColor = Panel) {
+                if (ui.selectedId == null) NavigationBar(containerColor = colors.surfaceContainerLow) {
                     NavigationBarItem(
                         selected = ui.tab == ScannerTab.SCANNER,
                         onClick = { viewModel.changeTab(ScannerTab.SCANNER) },
@@ -95,20 +89,22 @@ fun App(
 
 @Composable
 private fun Header(title: String) {
+    val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp)) {
-        Text("BLUECON  /  BLUETOOTH EXPLORER", color = Mint, fontSize = 11.sp, letterSpacing = 2.sp)
+        Text("BLUECON  /  BLUETOOTH EXPLORER", color = colors.primary, fontSize = 11.sp, letterSpacing = 2.sp)
         Spacer(Modifier.height(10.dp))
         Text(title, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
-        Text("Kenali sinyal di sekitarmu.", color = Muted, fontSize = 14.sp)
+        Text("Kenali sinyal di sekitarmu.", color = colors.onSurfaceVariant, fontSize = 14.sp)
     }
 }
 
 @Composable
 private fun Notice(message: String, action: String? = null, onAction: () -> Unit = {}) {
-    Surface(color = Color(0xFF303323), shape = RoundedCornerShape(14.dp), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+    val colors = MaterialTheme.colorScheme
+    Surface(color = colors.tertiaryContainer, shape = RoundedCornerShape(14.dp), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Text(message, color = Color(0xFFE7DCB8), fontSize = 13.sp)
+            Text(message, color = colors.onTertiaryContainer, fontSize = 13.sp)
             if (action != null) TextButton(onClick = onAction) { Text(action) }
         }
     }
@@ -116,6 +112,7 @@ private fun Notice(message: String, action: String? = null, onAction: () -> Unit
 
 @Composable
 private fun ScannerScreen(ui: ScannerUiState, viewModel: ScannerViewModel, onStart: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
     val visible = remember(ui.devices, ui.query, ui.minimumRssi, ui.sort) { ui.visibleDevices }
     var sortExpanded by remember { mutableStateOf(false) }
     LazyColumn(
@@ -156,8 +153,8 @@ private fun ScannerScreen(ui: ScannerUiState, viewModel: ScannerViewModel, onSta
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("PERANGKAT SEKITAR", color = Muted, fontSize = 11.sp, letterSpacing = 1.sp)
-                Text("${visible.size} ditemukan", color = Mint, fontSize = 12.sp)
+                Text("PERANGKAT SEKITAR", color = colors.onSurfaceVariant, fontSize = 11.sp, letterSpacing = 1.sp)
+                Text("${visible.size} ditemukan", color = colors.primary, fontSize = 12.sp)
             }
         }
         if (visible.isEmpty()) item {
@@ -168,19 +165,20 @@ private fun ScannerScreen(ui: ScannerUiState, viewModel: ScannerViewModel, onSta
             )
         }
         items(visible, key = { it.id }) { device -> DeviceCard(device) { viewModel.select(device.id) } }
-        item { Text("${sortLabel(ui.sort)} • Perangkat tanpa sinyal terbaru di bawah • Sesi maksimal 2 menit", color = Muted, fontSize = 11.sp) }
+        item { Text("${sortLabel(ui.sort)} • Perangkat tanpa sinyal terbaru di bawah • Sesi maksimal 2 menit", color = colors.onSurfaceVariant, fontSize = 11.sp) }
     }
 }
 
 @Composable
 private fun ScanControl(ui: ScannerUiState, onStart: () -> Unit, onStop: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+    val colors = MaterialTheme.colorScheme
+    Card(colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerLow), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.size(8.dp).background(if (ui.scanning) Mint else Muted, CircleShape))
-                Text(if (ui.scanning) "SCANNER AKTIF" else "SCANNER SIAP", color = Mint, fontSize = 11.sp, letterSpacing = 1.sp)
+                Box(Modifier.size(8.dp).background(if (ui.scanning) colors.primary else colors.onSurfaceVariant, CircleShape))
+                Text(if (ui.scanning) "SCANNER AKTIF" else "SCANNER SIAP", color = colors.primary, fontSize = 11.sp, letterSpacing = 1.sp)
             }
-            Text(scanMessage(ui.scanState), fontSize = 14.sp, color = Muted)
+            Text(scanMessage(ui.scanState), fontSize = 14.sp, color = colors.onSurfaceVariant)
             if (ui.scanning) OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Hentikan scan") }
             else Button(onClick = onStart, enabled = ui.scanState != ScanState.Closed, modifier = Modifier.fillMaxWidth()) { Text("Mulai scan") }
         }
@@ -189,22 +187,23 @@ private fun ScanControl(ui: ScannerUiState, onStart: () -> Unit, onStop: () -> U
 
 @Composable
 private fun DeviceCard(device: BleDevice, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerLow), shape = RoundedCornerShape(18.dp),
     ) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             SignalBars(device.rawRssi, device.isStale, Modifier.size(34.dp))
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(device.name ?: "Perangkat tanpa nama", fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(device.id, color = Muted, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                Text(device.id, color = colors.onSurfaceVariant, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                 Text(if (device.isStale) "Tidak ada sinyal terbaru" else "${device.zone.label} · ≈ ${device.zone.distanceLabel}", color = zoneColor(device.zone), fontSize = 12.sp)
             }
             Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End) {
-                Text("${device.rawRssi}", color = if (device.isStale) Muted else Mint, fontSize = 23.sp, fontWeight = FontWeight.Medium)
-                Text("raw dBm", color = Muted, fontSize = 10.sp)
+                Text("${device.rawRssi}", color = if (device.isStale) colors.onSurfaceVariant else colors.primary, fontSize = 23.sp, fontWeight = FontWeight.Medium)
+                Text("raw dBm", color = colors.onSurfaceVariant, fontSize = 10.sp)
             }
         }
     }
@@ -212,13 +211,14 @@ private fun DeviceCard(device: BleDevice, onClick: () -> Unit) {
 
 @Composable
 private fun SignalBars(rssi: Int, stale: Boolean, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
     Canvas(modifier) {
         val active = if (stale || rssi < -90) 0 else when { rssi >= -50 -> 4; rssi >= -70 -> 3; rssi >= -80 -> 2; else -> 1 }
         val barWidth = size.width / 7
         repeat(4) { i ->
             val height = size.height * (i + 1) / 4
             drawRoundRect(
-                if (i < active) Mint else Color(0xFF304139),
+                if (i < active) colors.primary else colors.outlineVariant,
                 topLeft = Offset(i * barWidth * 1.8f, size.height - height),
                 size = androidx.compose.ui.geometry.Size(barWidth, height),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()),
@@ -229,6 +229,7 @@ private fun SignalBars(rssi: Int, stale: Boolean, modifier: Modifier = Modifier)
 
 @Composable
 private fun RadarScreen(ui: ScannerUiState, onBack: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, formatTime: (Long) -> String) {
+    val colors = MaterialTheme.colorScheme
     val device = ui.selectedDevice
     val live = ui.scanning && device != null && !device.isStale
     val signal by animateFloatAsState(
@@ -238,25 +239,25 @@ private fun RadarScreen(ui: ScannerUiState, onBack: () -> Unit, onStart: () -> U
     LazyColumn(contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.fillMaxSize()) {
         item { TextButton(onClick = onBack) { Text("← Kembali ke scanner") } }
         item {
-            Text("PELACAKAN TARGET", color = Mint, fontSize = 11.sp, letterSpacing = 2.sp)
+            Text("PELACAKAN TARGET", color = colors.primary, fontSize = 11.sp, letterSpacing = 2.sp)
             Spacer(Modifier.height(8.dp))
             Text(device?.name ?: "Perangkat target", fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
-            Text(ui.selectedId.orEmpty(), color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Text(ui.selectedId.orEmpty(), color = colors.onSurfaceVariant, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
         item {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.size(270.dp)) {
                     val radius = size.minDimension / 2 - 8.dp.toPx()
-                    repeat(4) { i -> drawCircle(Mint.copy(alpha = 0.1f + i * 0.025f), radius * (i + 1) / 4, style = Stroke(1.dp.toPx())) }
-                    drawLine(Mint.copy(alpha = 0.12f), Offset(center.x - radius, center.y), Offset(center.x + radius, center.y))
-                    drawLine(Mint.copy(alpha = 0.12f), Offset(center.x, center.y - radius), Offset(center.x, center.y + radius))
-                    drawCircle(Mint.copy(alpha = 0.06f), radius * (0.2f + signal * 0.65f))
-                    drawCircle(if (live) Mint else Muted, 7.dp.toPx())
+                    repeat(4) { i -> drawCircle(colors.primary.copy(alpha = 0.1f + i * 0.025f), radius * (i + 1) / 4, style = Stroke(1.dp.toPx())) }
+                    drawLine(colors.primary.copy(alpha = 0.12f), Offset(center.x - radius, center.y), Offset(center.x + radius, center.y))
+                    drawLine(colors.primary.copy(alpha = 0.12f), Offset(center.x, center.y - radius), Offset(center.x, center.y + radius))
+                    drawCircle(colors.primary.copy(alpha = 0.06f), radius * (0.2f + signal * 0.65f))
+                    drawCircle(if (live) colors.primary else colors.onSurfaceVariant, 7.dp.toPx())
                     if (live) {
                         // Radial indicator only; RSSI provides no bearing/angle.
                         val point = Offset(center.x, center.y - radius * (1 - signal * 0.85f))
-                        drawCircle(Mint.copy(alpha = 0.16f), 17.dp.toPx(), point)
-                        drawCircle(Mint, 6.dp.toPx(), point)
+                        drawCircle(colors.primary.copy(alpha = 0.16f), 17.dp.toPx(), point)
+                        drawCircle(colors.primary, 6.dp.toPx(), point)
                     }
                 }
             }
@@ -265,13 +266,13 @@ private fun RadarScreen(ui: ScannerUiState, onBack: () -> Unit, onStart: () -> U
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     when { !ui.scanning -> "Pelacakan dijeda"; device == null || device.isStale -> "Sinyal hilang"; else -> device.zone.label },
-                    color = if (live) zoneColor(device!!.zone) else Muted, fontSize = 25.sp, fontWeight = FontWeight.SemiBold,
+                    color = if (live) zoneColor(device!!.zone) else colors.onSurfaceVariant, fontSize = 25.sp, fontWeight = FontWeight.SemiBold,
                 )
-                Text(if (live) "≈ ${device!!.zone.distanceLabel}" else "Menunggu pengamatan terbaru", color = Muted)
+                Text(if (live) "≈ ${device!!.zone.distanceLabel}" else "Menunggu pengamatan terbaru", color = colors.onSurfaceVariant)
             }
         }
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
+            Card(colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerLow), shape = RoundedCornerShape(18.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Metric("RSSI mentah", device?.let { "${it.rawRssi} dBm" } ?: "—")
                     Metric("RSSI diperhalus (EMA)", device?.let { "${it.smoothedRssi.roundToInt()} dBm" } ?: "—")
@@ -280,21 +281,23 @@ private fun RadarScreen(ui: ScannerUiState, onBack: () -> Unit, onStart: () -> U
                 }
             }
         }
-        item { Text("Jarak adalah perkiraan berdasarkan zona RSSI, bukan pengukuran presisi. Radar menunjukkan kedekatan tanpa informasi arah.", color = Muted, fontSize = 12.sp) }
+        item { Text("Jarak adalah perkiraan berdasarkan zona RSSI, bukan pengukuran presisi. Radar menunjukkan kedekatan tanpa informasi arah.", color = colors.onSurfaceVariant, fontSize = 12.sp) }
         item { ScanControl(ui, onStart, onStop) }
     }
 }
 
 @Composable
 private fun Metric(label: String, value: String) {
+    val colors = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(label, color = Muted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(label, color = colors.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.weight(1f))
         Text(value, fontSize = 12.sp, modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun HistoryScreen(ui: ScannerUiState, onQueryChange: (String) -> Unit, formatTime: (Long) -> String, onClear: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
     val devices = ui.history.devices
     val visible = remember(devices, ui.historyQuery) { ui.visibleHistory }
     LazyColumn(
@@ -313,7 +316,7 @@ private fun HistoryScreen(ui: ScannerUiState, onQueryChange: (String) -> Unit, f
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("${visible.size} dari ${devices.size} perangkat", color = Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                Text("${visible.size} dari ${devices.size} perangkat", color = colors.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.weight(1f))
                 TextButton(onClick = onClear, enabled = devices.isNotEmpty()) { Text("Hapus semua") }
             }
         }
@@ -322,25 +325,26 @@ private fun HistoryScreen(ui: ScannerUiState, onQueryChange: (String) -> Unit, f
             else EmptyState("Tidak ada hasil.", "Coba nama atau MAC address lain, atau hapus pencarian.")
         }
         items(visible, key = { it.id }) { device ->
-            Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
+            Card(colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerLow), shape = RoundedCornerShape(18.dp)) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(device.name ?: "Perangkat tanpa nama", fontWeight = FontWeight.SemiBold)
-                    Text(device.id, color = Muted, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-                    Text("Terakhir terlihat · ${formatTime(device.lastSeenAtMillis)}", color = Muted, fontSize = 12.sp)
-                    Text("RSSI terakhir ${device.lastRssi} dBm", color = Mint, fontSize = 12.sp)
+                    Text(device.id, color = colors.onSurfaceVariant, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                    Text("Terakhir terlihat · ${formatTime(device.lastSeenAtMillis)}", color = colors.onSurfaceVariant, fontSize = 12.sp)
+                    Text("RSSI terakhir ${device.lastRssi} dBm", color = colors.primary, fontSize = 12.sp)
                 }
             }
         }
-        item { Text("Alamat BLE dapat berubah. Riwayat berdasarkan alamat pengamatan, bukan identitas permanen perangkat.", color = Muted, fontSize = 11.sp) }
+        item { Text("Alamat BLE dapat berubah. Riwayat berdasarkan alamat pengamatan, bukan identitas permanen perangkat.", color = colors.onSurfaceVariant, fontSize = 11.sp) }
     }
 }
 
 @Composable
 private fun EmptyState(title: String, message: String) {
+    val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("◎", color = Mint.copy(alpha = 0.7f), fontSize = 54.sp)
+        Text("◎", color = colors.primary.copy(alpha = 0.7f), fontSize = 54.sp)
         Text(title, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-        Text(message, color = Muted, fontSize = 13.sp)
+        Text(message, color = colors.onSurfaceVariant, fontSize = 13.sp)
     }
 }
 
@@ -362,10 +366,14 @@ private fun scanMessage(state: ScanState): String = when (state) {
     }
 }
 
-private fun zoneColor(zone: ProximityZone): Color = when (zone) {
-    ProximityZone.VERY_CLOSE, ProximityZone.CLOSE, ProximityZone.NEARBY -> Mint
-    ProximityZone.FAR, ProximityZone.VERY_FAR -> Color(0xFFE8C07A)
-    ProximityZone.LOST -> Muted
+@Composable
+private fun zoneColor(zone: ProximityZone): Color {
+    val colors = MaterialTheme.colorScheme
+    return when (zone) {
+        ProximityZone.VERY_CLOSE, ProximityZone.CLOSE, ProximityZone.NEARBY -> colors.primary
+        ProximityZone.FAR, ProximityZone.VERY_FAR -> colors.tertiary
+        ProximityZone.LOST -> colors.onSurfaceVariant
+    }
 }
 
 private fun sortLabel(sort: DeviceSort): String = when (sort) {

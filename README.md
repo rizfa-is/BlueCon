@@ -21,6 +21,7 @@ Model dan algoritma SDK menggunakan source set KMP. Target iOS tetap tersedia un
 
 ## Fitur
 
+- Tema light/dark otomatis mengikuti pengaturan perangkat, termasuk warna kartu, radar, dialog, navigasi, dan ikon system bar.
 - Mulai/hentikan pemindaian BLE advertising dengan satu sesi bersama.
 - Nama advertised bila tersedia, alamat pengamatan, RSSI mentah, RSSI EMA, dan perkiraan rentang jarak.
 - Pilihan urutan perangkat: bernama lebih dulu (default), sinyal terkuat, nama A-Z, atau terbaru. Perangkat stale tetap di bawah; pencarian nama/MAC dan filter minimum -80 atau -60 dBm tetap berlaku.
@@ -90,6 +91,7 @@ Uji manual di perangkat fisik pada kelompok API 24-28, 29-30, 31-32, 33, dan 34+
 - Peripheral berhenti advertising dan kembali muncul; pastikan stale dan recovery benar.
 - Pencarian, setiap pilihan urutan, dan ambang RSSI; periksa pencarian scanner/riwayat tetap terpisah saat berpindah tab; tutup/buka aplikasi untuk memeriksa persistence; hapus riwayat.
 - Scan Stop/Start berulang untuk memeriksa feedback pembatasan OS tanpa auto-retry loop.
+- Ganti mode light/dark perangkat pada scanner, radar, dan riwayat; periksa keterbacaan teks, kontrol, dan ikon status/navigation bar.
 
 ## Batasan dan asumsi
 
