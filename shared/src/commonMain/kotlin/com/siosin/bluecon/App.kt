@@ -29,7 +29,7 @@ import com.siosin.bluecon.bluetooth.ProximityZone
 import com.siosin.bluecon.bluetooth.ScanBlocker
 import com.siosin.bluecon.bluetooth.ScanState
 import com.siosin.bluecon.bluetooth.StopReason
-import com.siosin.bluecon.domain.DeviceHistory
+import com.siosin.bluecon.domain.DeviceSort
 import com.siosin.bluecon.presentation.ScannerTab
 import com.siosin.bluecon.presentation.ScannerUiState
 import com.siosin.bluecon.presentation.ScannerViewModel
@@ -79,14 +79,14 @@ fun App(
                 } else {
                     Header(if (ui.tab == ScannerTab.SCANNER) "Temukan yang dekat." else "Jejak perangkat.")
                     if (ui.tab == ScannerTab.SCANNER) ScannerScreen(ui, viewModel, onStartRequested)
-                    else HistoryScreen(ui.history.devices, formatTime) { confirmClear = true }
+                    else HistoryScreen(ui, viewModel::searchHistory, formatTime) { confirmClear = true }
                 }
             }
         }
         if (confirmClear) AlertDialog(
             onDismissRequest = { confirmClear = false },
             title = { Text("Hapus riwayat?") },
-            text = { Text("Riwayat tersimpan akan dihapus. Perangkat yang terdeteksi kembali akan dicatat lagi.") },
+            text = { Text("Seluruh riwayat tersimpan akan dihapus. Perangkat yang terdeteksi kembali akan dicatat lagi.") },
             confirmButton = { TextButton(onClick = { confirmClear = false; viewModel.clearHistory() }) { Text("Hapus") } },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Batal") } },
         )
@@ -116,7 +116,8 @@ private fun Notice(message: String, action: String? = null, onAction: () -> Unit
 
 @Composable
 private fun ScannerScreen(ui: ScannerUiState, viewModel: ScannerViewModel, onStart: () -> Unit) {
-    val visible = remember(ui.devices, ui.query, ui.minimumRssi) { ui.visibleDevices }
+    val visible = remember(ui.devices, ui.query, ui.minimumRssi, ui.sort) { ui.visibleDevices }
+    var sortExpanded by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
@@ -138,6 +139,22 @@ private fun ScannerScreen(ui: ScannerUiState, viewModel: ScannerViewModel, onSta
             }
         }
         item {
+            Box {
+                OutlinedButton(onClick = { sortExpanded = true }) {
+                    Text("Urutkan: ${sortLabel(ui.sort)} ▾")
+                }
+                DropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
+                    DeviceSort.entries.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(sortLabel(option)) },
+                            leadingIcon = { Text(if (ui.sort == option) "✓" else "") },
+                            onClick = { viewModel.setSort(option); sortExpanded = false },
+                        )
+                    }
+                }
+            }
+        }
+        item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("PERANGKAT SEKITAR", color = Muted, fontSize = 11.sp, letterSpacing = 1.sp)
                 Text("${visible.size} ditemukan", color = Mint, fontSize = 12.sp)
@@ -151,7 +168,7 @@ private fun ScannerScreen(ui: ScannerUiState, viewModel: ScannerViewModel, onSta
             )
         }
         items(visible, key = { it.id }) { device -> DeviceCard(device) { viewModel.select(device.id) } }
-        item { Text("Urutan sinyal terkuat • Sesi scan maksimal 2 menit", color = Muted, fontSize = 11.sp) }
+        item { Text("${sortLabel(ui.sort)} • Perangkat tanpa sinyal terbaru di bawah • Sesi maksimal 2 menit", color = Muted, fontSize = 11.sp) }
     }
 }
 
@@ -277,19 +294,34 @@ private fun Metric(label: String, value: String) {
 }
 
 @Composable
-private fun HistoryScreen(devices: List<DeviceHistory>, formatTime: (Long) -> String, onClear: () -> Unit) {
+private fun HistoryScreen(ui: ScannerUiState, onQueryChange: (String) -> Unit, formatTime: (Long) -> String, onClear: () -> Unit) {
+    val devices = ui.history.devices
+    val visible = remember(devices, ui.historyQuery) { ui.visibleHistory }
     LazyColumn(
         modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
+            OutlinedTextField(
+                value = ui.historyQuery, onValueChange = onQueryChange,
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text("Cari riwayat nama atau MAC address") }, shape = RoundedCornerShape(14.dp),
+                trailingIcon = {
+                    if (ui.historyQuery.isNotEmpty()) TextButton(onClick = { onQueryChange("") }) { Text("Hapus") }
+                },
+            )
+        }
+        item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("${devices.size} perangkat tersimpan", color = Muted, fontSize = 13.sp)
-                TextButton(onClick = onClear, enabled = devices.isNotEmpty()) { Text("Hapus riwayat") }
+                Text("${visible.size} dari ${devices.size} perangkat", color = Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                TextButton(onClick = onClear, enabled = devices.isNotEmpty()) { Text("Hapus semua") }
             }
         }
-        if (devices.isEmpty()) item { EmptyState("Belum ada jejak.", "Perangkat yang terdeteksi akan tersimpan di sini, termasuk setelah aplikasi ditutup.") }
-        items(devices, key = { it.id }) { device ->
+        if (visible.isEmpty()) item {
+            if (devices.isEmpty()) EmptyState("Belum ada jejak.", "Perangkat yang terdeteksi akan tersimpan di sini, termasuk setelah aplikasi ditutup.")
+            else EmptyState("Tidak ada hasil.", "Coba nama atau MAC address lain, atau hapus pencarian.")
+        }
+        items(visible, key = { it.id }) { device ->
             Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(device.name ?: "Perangkat tanpa nama", fontWeight = FontWeight.SemiBold)
@@ -334,4 +366,11 @@ private fun zoneColor(zone: ProximityZone): Color = when (zone) {
     ProximityZone.VERY_CLOSE, ProximityZone.CLOSE, ProximityZone.NEARBY -> Mint
     ProximityZone.FAR, ProximityZone.VERY_FAR -> Color(0xFFE8C07A)
     ProximityZone.LOST -> Muted
+}
+
+private fun sortLabel(sort: DeviceSort): String = when (sort) {
+    DeviceSort.NAMED_FIRST -> "Bernama dulu"
+    DeviceSort.SIGNAL_STRENGTH -> "Sinyal terkuat"
+    DeviceSort.NAME -> "Nama A–Z"
+    DeviceSort.LAST_SEEN -> "Terbaru"
 }

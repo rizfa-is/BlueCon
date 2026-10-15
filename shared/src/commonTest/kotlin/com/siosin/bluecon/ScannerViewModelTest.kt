@@ -7,6 +7,7 @@ import com.siosin.bluecon.bluetooth.ScanState
 import com.siosin.bluecon.bluetooth.StopReason
 import com.siosin.bluecon.bluetooth.proximityZone
 import com.siosin.bluecon.domain.DeviceHistory
+import com.siosin.bluecon.domain.DeviceSort
 import com.siosin.bluecon.domain.DeviceHistoryRepository
 import com.siosin.bluecon.domain.HistoryState
 import com.siosin.bluecon.domain.ScanDevices
@@ -80,6 +81,37 @@ class ScannerViewModelTest {
             model.clearHistory()
             runCurrent()
             assertEquals(emptyList(), model.state.value.history.devices)
+        } finally {
+            model.viewModelScope.cancel()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun searchAndSortSurviveTabChangesAndApplyToIncomingObservations() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val scanner = FakeScanner()
+        val history = FakeHistory()
+        val model = ScannerViewModel(ScanDevices(scanner), history)
+        try {
+            model.search("beacon")
+            model.searchHistory("bb:02")
+            model.setSort(DeviceSort.SIGNAL_STRENGTH)
+            model.changeTab(ScannerTab.HISTORY)
+            history.state.value = HistoryState(listOf(
+                DeviceHistory("AA:01", "Beacon", -70, 100),
+                DeviceHistory("BB:02", null, -50, 200),
+            ))
+            scanner.devices.value = listOf(
+                BleDevice("AA", "Beacon A", -70, -70.0, proximityZone(-70), 100),
+                BleDevice("BB", "Beacon B", -50, -50.0, proximityZone(-50), 100),
+            )
+            runCurrent()
+            assertEquals(listOf("BB:02"), model.state.value.visibleHistory.map { it.id })
+            model.changeTab(ScannerTab.SCANNER)
+            assertEquals("beacon", model.state.value.query)
+            assertEquals("bb:02", model.state.value.historyQuery)
+            assertEquals(listOf("BB", "AA"), model.state.value.visibleDevices.map { it.id })
         } finally {
             model.viewModelScope.cancel()
             Dispatchers.resetMain()

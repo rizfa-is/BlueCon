@@ -23,11 +23,25 @@ class ScanDevices(private val repository: ScannerRepository) {
     fun onBackground() = repository.stop(StopReason.BACKGROUND)
 }
 
-fun filterDevices(devices: List<BleDevice>, query: String, minimumRssi: Int?): List<BleDevice> {
+enum class DeviceSort { NAMED_FIRST, SIGNAL_STRENGTH, NAME, LAST_SEEN }
+
+fun filterDevices(
+    devices: List<BleDevice>,
+    query: String,
+    minimumRssi: Int?,
+    sort: DeviceSort = DeviceSort.NAMED_FIRST,
+): List<BleDevice> {
     val search = query.trim()
+    val order = when (sort) {
+        DeviceSort.NAMED_FIRST -> compareBy<BleDevice> { it.name.isNullOrBlank() }.thenByDescending { it.rawRssi }
+        DeviceSort.SIGNAL_STRENGTH -> compareByDescending<BleDevice> { it.rawRssi }
+        DeviceSort.NAME -> compareBy<BleDevice> { it.name.isNullOrBlank() }
+            .thenBy { it.name.orEmpty().trim().lowercase() }.thenByDescending { it.rawRssi }
+        DeviceSort.LAST_SEEN -> compareByDescending<BleDevice> { it.lastSeenAtMillis }.thenByDescending { it.rawRssi }
+    }
     return devices.filter {
         (search.isEmpty() || it.id.contains(search, ignoreCase = true) ||
             it.name.orEmpty().contains(search, ignoreCase = true)) &&
             (minimumRssi == null || it.rawRssi >= minimumRssi)
-    }.sortedWith(compareBy<BleDevice> { it.isStale }.thenByDescending { it.rawRssi }.thenBy { it.id })
+    }.sortedWith(compareBy<BleDevice> { it.isStale }.then(order).thenBy { it.id })
 }

@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.siosin.bluecon.bluetooth.BleDevice
 import com.siosin.bluecon.bluetooth.ScanState
 import com.siosin.bluecon.domain.DeviceHistoryRepository
+import com.siosin.bluecon.domain.DeviceSort
 import com.siosin.bluecon.domain.HistoryState
 import com.siosin.bluecon.domain.ScanDevices
 import com.siosin.bluecon.domain.filterDevices
+import com.siosin.bluecon.domain.filterDeviceHistory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -20,11 +22,14 @@ data class ScannerUiState(
     val devices: List<BleDevice> = emptyList(),
     val history: HistoryState = HistoryState(),
     val query: String = "",
+    val historyQuery: String = "",
+    val sort: DeviceSort = DeviceSort.NAMED_FIRST,
     val minimumRssi: Int? = null,
     val selectedId: String? = null,
     val tab: ScannerTab = ScannerTab.SCANNER,
 ) {
-    val visibleDevices get() = filterDevices(devices, query, minimumRssi)
+    val visibleDevices get() = filterDevices(devices, query, minimumRssi, sort)
+    val visibleHistory get() = filterDeviceHistory(history.devices, historyQuery)
     val selectedDevice get() = devices.firstOrNull { it.id == selectedId }
     val scanning get() = scanState == ScanState.Scanning
 }
@@ -46,6 +51,8 @@ class ScannerViewModel(
     fun stop() = scanDevices.stop()
     fun onBackground() = scanDevices.onBackground()
     fun search(value: String) { mutableState.update { it.copy(query = value) } }
+    fun searchHistory(value: String) { mutableState.update { it.copy(historyQuery = value) } }
+    fun setSort(value: DeviceSort) { mutableState.update { it.copy(sort = value) } }
     fun setMinimumRssi(value: Int?) { mutableState.update { it.copy(minimumRssi = value) } }
     fun select(id: String) { mutableState.update { it.copy(selectedId = id) } }
     fun back() { mutableState.update { it.copy(selectedId = null) } }

@@ -23,10 +23,10 @@ Model dan algoritma SDK menggunakan source set KMP. Target iOS tetap tersedia un
 
 - Mulai/hentikan pemindaian BLE advertising dengan satu sesi bersama.
 - Nama advertised bila tersedia, alamat pengamatan, RSSI mentah, RSSI EMA, dan perkiraan rentang jarak.
-- Pengurutan sinyal terkuat, pencarian nama/MAC, dan filter minimum -80 atau -60 dBm.
+- Pilihan urutan perangkat: bernama lebih dulu (default), sinyal terkuat, nama A-Z, atau terbaru. Perangkat stale tetap di bawah; pencarian nama/MAC dan filter minimum -80 atau -60 dBm tetap berlaku.
 - Layar radar untuk satu target, indikator kedekatan tanpa mengklaim informasi arah.
 - Target stale setelah 8 detik tanpa advertising; cache membuang target setelah 60 detik.
-- Riwayat lokal: nama, alamat, RSSI terakhir, dan waktu terakhir terlihat. Maksimal 2.000 entri.
+- Riwayat lokal: nama, alamat, RSSI terakhir, dan waktu terakhir terlihat. Maksimal 2.000 entri, dengan pencarian nama/MAC yang terpisah dari pencarian scanner.
 - Penanganan hardware tidak tersedia, Bluetooth/lokasi mati, izin ditolak atau dicabut, dan error scanner termasuk pembatasan frekuensi scan dari OS.
 
 ## Lifecycle dan optimasi
@@ -88,7 +88,7 @@ Uji manual di perangkat fisik pada kelompok API 24-28, 29-30, 31-32, 33, dan 34+
 - Bluetooth/lokasi dimatikan selama scan, lalu diaktifkan kembali.
 - Rotasi ketika scan aktif dan saat menampilkan target; navigasi background/foreground.
 - Peripheral berhenti advertising dan kembali muncul; pastikan stale dan recovery benar.
-- Pencarian dan ambang RSSI; tutup/buka aplikasi untuk memeriksa persistence; hapus riwayat.
+- Pencarian, setiap pilihan urutan, dan ambang RSSI; periksa pencarian scanner/riwayat tetap terpisah saat berpindah tab; tutup/buka aplikasi untuk memeriksa persistence; hapus riwayat.
 - Scan Stop/Start berulang untuk memeriksa feedback pembatasan OS tanpa auto-retry loop.
 
 ## Batasan dan asumsi
