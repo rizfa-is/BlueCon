@@ -22,6 +22,7 @@ Model dan algoritma SDK menggunakan source set KMP. Target iOS tetap tersedia un
 ## Fitur
 
 - Tema light/dark otomatis mengikuti pengaturan perangkat, termasuk warna kartu, radar, dialog, navigasi, dan ikon system bar.
+- Ikon bottom navigation digambar sebagai vektor berukuran 32 dp agar jelas pada berbagai perangkat; warna mengikuti tema dan status pilihan tab.
 - Mulai/hentikan pemindaian BLE advertising dengan satu sesi bersama.
 - Nama advertised bila tersedia, alamat pengamatan, RSSI mentah, RSSI EMA, dan perkiraan rentang jarak.
 - Pilihan urutan perangkat: bernama lebih dulu (default), sinyal terkuat, nama A-Z, atau terbaru. Perangkat stale tetap di bawah; pencarian nama/MAC dan filter minimum -80 atau -60 dBm tetap berlaku.

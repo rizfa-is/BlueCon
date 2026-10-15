@@ -33,6 +33,7 @@ import com.siosin.bluecon.domain.DeviceSort
 import com.siosin.bluecon.presentation.ScannerTab
 import com.siosin.bluecon.presentation.ScannerUiState
 import com.siosin.bluecon.presentation.ScannerViewModel
+import com.siosin.bluecon.presentation.components.NavigationIcon
 import com.siosin.bluecon.presentation.theme.BlueConTheme
 import kotlin.math.roundToInt
 
@@ -55,12 +56,12 @@ fun App(
                     NavigationBarItem(
                         selected = ui.tab == ScannerTab.SCANNER,
                         onClick = { viewModel.changeTab(ScannerTab.SCANNER) },
-                        icon = { Text("◎", fontSize = 24.sp) }, label = { Text("Scanner") },
+                        icon = { NavigationIcon(ScannerTab.SCANNER) }, label = { Text("Scanner") },
                     )
                     NavigationBarItem(
                         selected = ui.tab == ScannerTab.HISTORY,
                         onClick = { viewModel.changeTab(ScannerTab.HISTORY) },
-                        icon = { Text("◷", fontSize = 24.sp) }, label = { Text("Riwayat") },
+                        icon = { NavigationIcon(ScannerTab.HISTORY) }, label = { Text("Riwayat") },
                     )
                 }
             },
