@@ -158,10 +158,13 @@ class AndroidBluetoothScanner(
             }
             platformScanner = scanner
             callback = scanCallback
-            val settings = ScanSettings.Builder()
+            val settingsBuilder = ScanSettings.Builder()
                 .setScanMode(if (config.highResponsiveness) ScanSettings.SCAN_MODE_LOW_LATENCY else ScanSettings.SCAN_MODE_BALANCED)
                 .setReportDelay(0)
-                .build()
+            if (Build.VERSION.SDK_INT >= 26 && config.includeExtendedAdvertisements && adapter?.isLeExtendedAdvertisingSupported == true) {
+                settingsBuilder.setLegacy(false).setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
+            }
+            val settings = settingsBuilder.build()
             mutableState.value = ScanState.Scanning
             startPlatformScan(scanner, filters, settings, scanCallback)
             // A synchronous platform failure may have ended the session already.

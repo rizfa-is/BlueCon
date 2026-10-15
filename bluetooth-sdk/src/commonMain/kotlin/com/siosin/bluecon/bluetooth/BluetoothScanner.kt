@@ -21,6 +21,8 @@ data class ScanConfig(
     val highResponsiveness: Boolean = false,
     /** Optional canonical UUIDs; an empty set discovers all advertising devices. */
     val serviceUuids: Set<String> = emptySet(),
+    /** Enable extended reports where both Android and the controller support them. */
+    val includeExtendedAdvertisements: Boolean = true,
 ) {
     init {
         require(durationMillis in 1_000..600_000)

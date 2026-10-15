@@ -66,6 +66,8 @@ TX power uses the AD field when present and otherwise the extended advertising h
 
 Default configuration: two-minute session, snapshots every 300 ms, stale after eight seconds, eviction after 60 seconds, and at most 500 cached devices. The signal history is capped per device. Optional service UUID filters and a higher-responsiveness scan mode are available in `ScanConfig`.
 
+Extended advertising is enabled on API 26+ when the controller reports support, using all supported scanning PHYs. Older or unsupported devices retain legacy scanning. Set `includeExtendedAdvertisements=false` to request legacy reports only.
+
 Implement `SignalProcessor` only when device profiling shows a need. Calls are serialized; an implementation must not block the main thread and must release per-device state in `forget`/`reset`. Heavy native work would need a worker/batching adapter. No NDK or Python runtime is included, and no performance improvement has been benchmarked.
 
 ## References
