@@ -1,6 +1,5 @@
 package com.siosin.bluecon.presentation.screens
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -9,11 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontFamily
@@ -46,7 +40,7 @@ fun DeviceDetailScreen(ui: ScannerUiState, onStart: () -> Unit, onStop: () -> Un
             }
         }
         if (device != null) {
-            item { ProximityCard(device, fresh) }
+            item { ProximityRadarCard(device, ui.scanning, formatTime) }
             item {
                 SectionCard("Signal") {
                     MetricRow("Raw RSSI", "${device.rawRssi} dBm", monospace = true)
@@ -118,28 +112,6 @@ fun DeviceDetailScreen(ui: ScannerUiState, onStart: () -> Unit, onStop: () -> Un
             }
         }
         item { ScanControls(ui, onStart, onStop) }
-    }
-}
-
-@Composable
-private fun ProximityCard(device: BleDevice, fresh: Boolean) {
-    val colors = MaterialTheme.colorScheme
-    val strength = ((device.smoothedRssi + 100) / 70).toFloat().coerceIn(0f, 1f)
-    SectionCard("Proximity estimate") {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Canvas(Modifier.size(88.dp).clearAndSetSemantics { }) {
-                val stroke = 7.dp.toPx()
-                val inset = stroke / 2
-                val arcSize = Size(size.width - stroke, size.height - stroke)
-                drawArc(colors.outlineVariant, 135f, 270f, false, Offset(inset, inset), arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-                if (fresh) drawArc(colors.primary, 135f, 270f * strength, false, Offset(inset, inset), arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(if (!fresh) "No live estimate" else device.zone.distanceLabel, style = MaterialTheme.typography.headlineSmall)
-                Text(when { !fresh -> "Showing the last observation"; device.zone == ProximityZone.LOST -> "Below ranging threshold"; else -> device.zone.label }, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-            }
-        }
-        Text("RSSI-based range, not a precise distance. Obstacles and device orientation affect signal strength.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
     }
 }
 

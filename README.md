@@ -61,7 +61,8 @@ Rows show the advertised name when available, address, raw RSSI, and an observat
 
 Open a scanner row to inspect:
 
-- A proximity range and signal-strength gauge, with separate raw and smoothed RSSI values.
+- A five-band proximity radar with a numbered range legend, current-band highlight, raw RSSI, and last-observed timestamp. The marker sits on a fixed axis and disappears when the signal is stale, scanning stops, or no range is available. Ring spacing is schematic; it does not represent bearing or a linear distance scale.
+- Separate raw and smoothed RSSI values. Radar bands use the SDK's raw-RSSI classification, matching the displayed range.
 - A timestamped chart of up to 48 recent reports. Pause the chart without stopping the scan, or expand the report values as text.
 - First/last observed timestamps and accepted report count.
 - Connectability, legacy/extended advertising, TX power, primary/secondary PHY, advertising SID, data completeness, and AD flags when reported.
@@ -148,7 +149,7 @@ Manual checks to run:
 - Permission grants, denials, permanent denial, approximate-only location, and revocation.
 - Bluetooth/location changes during a session, scan timeouts, and repeated starts.
 - Rotation, background/foreground, tab/back navigation, and retained search/scroll state.
-- Peripheral disappearance/recovery, raw/EMA readings, chart pause/resume, and report-value expansion.
+- Peripheral disappearance/recovery, radar range/legend agreement, stale/stopped marker removal, raw/EMA readings, chart pause/resume, and report-value expansion.
 - Legacy/extended advertisements, absent TX power, empty payloads, and truncated records on supported hardware.
 - Persistence across app restarts, searching history, opening saved details, and clearing history.
 - Light/dark themes, a small phone around 375 dp, landscape, tablet width, largest system text, reduced motion, and TalkBack labels.
