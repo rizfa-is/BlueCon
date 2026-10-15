@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permission declarations and physical-location policy belong to the consuming app. -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+</manifest>
