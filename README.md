@@ -15,12 +15,39 @@ androidApp
 
 - `bluetooth-sdk/commonMain`: scanner contract, `BleDevice`, advertising models, EMA, bounded RSSI history, proximity ranges, cache expiry.
 - `bluetooth-sdk/androidMain`: Android scanner, advertising mapper, version-aware permission policy, adapter readiness, cleanup.
-- `shared/domain`: repository contracts, session policy, filtering, sorting, and history search.
+- `shared/domain/model`: history models and scanner sort options.
+- `shared/domain/repository`: scanner and history contracts implemented by the data layer.
+- `shared/domain/usecase`: individual scan, observation, filtering, sorting, and history operations.
 - `shared/data`: SDK adapter implementing the application scanner repository.
 - `shared/presentation`: ViewModel, screens, reusable controls, and semantic theme colors.
 - `androidApp`: constructor injection through `AppContainer`, Activity Result permission flow, and Kotlin Room entities/DAO/database processed with KSP2.
 
 The SDK has no Compose, Room, Activity, or DI framework dependency. iOS targets retain portable code, but no iOS BLE backend is implemented; the iOS entry point shows an availability message.
+
+## Domain use cases
+
+Each use case has one public `operator fun invoke` entry point and its own file. They run in `commonMain` without Android, Room, Compose, or ViewModel dependencies.
+
+| Package | Use case | Responsibility |
+| --- | --- | --- |
+| `usecase/scanner` | `StartScanUseCase` | Start a foreground session with the two-minute application policy. |
+| `usecase/scanner` | `StopScanUseCase` | Stop with the user-requested reason. |
+| `usecase/scanner` | `StopScanOnBackgroundUseCase` | Stop when the host leaves the foreground. |
+| `usecase/scanner` | `ObserveScannedDevicesUseCase` | Expose the current device observation stream. |
+| `usecase/scanner` | `ObserveScanStateUseCase` | Expose scan status and blockers. |
+| `usecase/scanner` | `FilterScannedDevicesUseCase` | Match name/address and minimum RSSI without reordering. |
+| `usecase/scanner` | `SortScannedDevicesUseCase` | Apply the chosen ordering, stale-last policy, and address tie-breaker. |
+| `usecase/history` | `ObserveDeviceHistoryUseCase` | Expose persisted history and storage errors. |
+| `usecase/history` | `SearchDeviceHistoryUseCase` | Match saved name/address while preserving recency order. |
+| `usecase/history` | `SaveDeviceHistoryUseCase` | Submit an observation snapshot for persistence. |
+| `usecase/history` | `ClearDeviceHistoryUseCase` | Clear persisted observations. |
+| `usecase/history` | `SyncScanHistoryUseCase` | Batch the latest snapshot every two seconds during scanning and flush on stop. |
+
+`ScannerViewModel` receives its use cases through constructor injection. It maintains selection, queries, and screen state; use cases produce filtered and sorted results before they reach Compose. `ScannerUiState` holds the visible lists without running domain operations in property getters.
+
+`AppContainer` constructs dependencies and launches one history synchronization job in application scope. Scheduling policy lives in `SyncScanHistoryUseCase`; the container also delegates the explicit background flush to `SaveDeviceHistoryUseCase`. Native permission dialogs and readiness checks remain in the Android host, while scan commands go through the ViewModel's use cases.
+
+This separates reasons to change: scan policy, ordering, and persistence coordination live in different classes. Use cases depend on focused repository interfaces, and data adapters implement those interfaces. New operations can be added as use cases without expanding a shared facade. Small concrete use cases are injected directly; interfaces are used at repository boundaries where implementations vary. The SDK's portable BLE models remain the shared contract rather than being duplicated in the application domain.
 
 ## Screens
 
@@ -114,7 +141,7 @@ Run these yourself:
 
 The debug APK is produced under `androidApp/build/outputs/apk/debug/`. Builds and test execution are left to the project owner as requested. Current validation is source/static review; no device screenshots or runtime-layout verification are claimed.
 
-Test sources cover RSSI boundaries, silent-device expiry, clock changes, delayed reports, bounded history/cache behavior, metadata propagation, payload byte formatting, permission policy, search/sort behavior, and ViewModel selection/history behavior.
+Test sources cover RSSI boundaries, silent-device expiry, clock changes, delayed reports, bounded history/cache behavior, metadata propagation, payload byte formatting, permission policy, individual use cases, and ViewModel selection/history behavior. Domain tests include two-minute scan policy, distinct stop reasons, filtering independent of ordering, deterministic sorting, history search/clear, and virtual-time persistence batching, stop/background flushes, restart timing, and cancellation.
 
 Manual checks to run:
 

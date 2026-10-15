@@ -4,18 +4,25 @@ import android.app.Application
 import android.content.Context
 import androidx.room.Room
 import com.siosin.bluecon.bluetooth.AndroidBluetoothScanner
-import com.siosin.bluecon.bluetooth.ScanState
 import com.siosin.bluecon.data.HistoryDatabase
 import com.siosin.bluecon.data.RoomDeviceHistoryRepository
 import com.siosin.bluecon.data.SdkScannerRepository
-import com.siosin.bluecon.domain.ScanDevices
+import com.siosin.bluecon.domain.usecase.history.ClearDeviceHistoryUseCase
+import com.siosin.bluecon.domain.usecase.history.ObserveDeviceHistoryUseCase
+import com.siosin.bluecon.domain.usecase.history.SaveDeviceHistoryUseCase
+import com.siosin.bluecon.domain.usecase.history.SearchDeviceHistoryUseCase
+import com.siosin.bluecon.domain.usecase.history.SyncScanHistoryUseCase
+import com.siosin.bluecon.domain.usecase.scanner.FilterScannedDevicesUseCase
+import com.siosin.bluecon.domain.usecase.scanner.ObserveScannedDevicesUseCase
+import com.siosin.bluecon.domain.usecase.scanner.ObserveScanStateUseCase
+import com.siosin.bluecon.domain.usecase.scanner.SortScannedDevicesUseCase
+import com.siosin.bluecon.domain.usecase.scanner.StartScanUseCase
+import com.siosin.bluecon.domain.usecase.scanner.StopScanOnBackgroundUseCase
+import com.siosin.bluecon.domain.usecase.scanner.StopScanUseCase
 import com.siosin.bluecon.presentation.ScannerViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class BlueConApplication : Application() {
@@ -28,27 +35,31 @@ class AppContainer(context: Context) {
     val scanner = AndroidBluetoothScanner(context, derivesPhysicalLocation = true)
     private val database = Room.databaseBuilder(context.applicationContext, HistoryDatabase::class.java, "bluecon-history.db").build()
     private val history = RoomDeviceHistoryRepository(database, scope)
-    private val scanDevices = ScanDevices(SdkScannerRepository(scanner))
+    private val scannerRepository = SdkScannerRepository(scanner)
+    private val observeScannedDevices = ObserveScannedDevicesUseCase(scannerRepository)
+    private val observeScanState = ObserveScanStateUseCase(scannerRepository)
+    private val saveDeviceHistory = SaveDeviceHistoryUseCase(history)
+    private val syncScanHistory = SyncScanHistoryUseCase(observeScanState, observeScannedDevices, saveDeviceHistory)
 
     init {
-        // Batched writes, independent of screen collectors and rotation.
-        scope.launch {
-            scanner.state.collectLatest { state ->
-                if (state == ScanState.Scanning) {
-                    while (isActive) {
-                        delay(2_000)
-                        history.save(scanner.devices.value)
-                    }
-                } else {
-                    history.save(scanner.devices.value)
-                }
-            }
-        }
+        scope.launch { syncScanHistory() }
     }
 
-    fun createScannerViewModel() = ScannerViewModel(scanDevices, history)
+    fun createScannerViewModel() = ScannerViewModel(
+        startScan = StartScanUseCase(scannerRepository),
+        stopScan = StopScanUseCase(scannerRepository),
+        stopScanOnBackground = StopScanOnBackgroundUseCase(scannerRepository),
+        observeScannedDevices = observeScannedDevices,
+        observeScanState = observeScanState,
+        observeDeviceHistory = ObserveDeviceHistoryUseCase(history),
+        filterScannedDevices = FilterScannedDevicesUseCase(),
+        sortScannedDevices = SortScannedDevicesUseCase(),
+        searchDeviceHistory = SearchDeviceHistoryUseCase(),
+        clearDeviceHistory = ClearDeviceHistoryUseCase(history),
+    )
+
     fun flushHistory() {
-        val snapshot = scanner.devices.value
-        scope.launch { history.save(snapshot) }
+        val snapshot = observeScannedDevices().value
+        scope.launch { saveDeviceHistory(snapshot) }
     }
 }

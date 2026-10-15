@@ -17,7 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.siosin.bluecon.domain.DeviceSort
+import com.siosin.bluecon.domain.model.DeviceSort
 import com.siosin.bluecon.bluetooth.ProximityZone
 import com.siosin.bluecon.presentation.ScannerUiState
 import com.siosin.bluecon.presentation.ScannerViewModel
@@ -25,7 +25,7 @@ import com.siosin.bluecon.presentation.components.*
 
 @Composable
 fun ScannerScreen(ui: ScannerUiState, viewModel: ScannerViewModel, onStart: () -> Unit, listState: LazyListState, banners: (@Composable () -> Unit)? = null) {
-    val visible = remember(ui.devices, ui.query, ui.minimumRssi, ui.sort) { ui.visibleDevices }
+    val visible = ui.visibleDevices
     val keyboard = LocalSoftwareKeyboardController.current
     var sortExpanded by remember { mutableStateOf(false) }
     var filterExpanded by remember { mutableStateOf(false) }

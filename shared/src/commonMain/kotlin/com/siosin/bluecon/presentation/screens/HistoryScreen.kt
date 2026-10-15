@@ -18,7 +18,7 @@ import com.siosin.bluecon.presentation.components.*
 
 @Composable
 fun HistoryScreen(ui: ScannerUiState, viewModel: ScannerViewModel, formatTime: (Long) -> String, onClear: () -> Unit, listState: LazyListState, banners: (@Composable () -> Unit)? = null) {
-    val visible = remember(ui.history.devices, ui.historyQuery) { ui.visibleHistory }
+    val visible = ui.visibleHistory
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

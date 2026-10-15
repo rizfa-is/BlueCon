@@ -2,9 +2,9 @@ package com.siosin.bluecon.data
 
 import android.os.SystemClock
 import com.siosin.bluecon.bluetooth.BleDevice
-import com.siosin.bluecon.domain.DeviceHistory
-import com.siosin.bluecon.domain.DeviceHistoryRepository
-import com.siosin.bluecon.domain.HistoryState
+import com.siosin.bluecon.domain.model.DeviceHistory
+import com.siosin.bluecon.domain.model.HistoryState
+import com.siosin.bluecon.domain.repository.DeviceHistoryRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

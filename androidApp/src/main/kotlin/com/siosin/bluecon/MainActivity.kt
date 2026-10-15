@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
             } else {
                 "Permissions are incomplete. Tap Start scan to allow Nearby devices and precise location."
             }
-            container.scanner.start() // Publishes the precise blocker; no scan starts without permission.
+            scannerViewModel.start() // Publishes the precise blocker; no scan starts without permission.
         }
     }
 
@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
         when (val blocker = container.scanner.readinessBlocker()) {
             null -> scannerViewModel.start()
             is ScanBlocker.MissingPermissions -> {
-                container.scanner.start()
+                scannerViewModel.start()
                 val permanentlyDenied = blocker.permissions.any {
                     preferences.getBoolean(it, false) && !shouldShowRequestPermissionRationale(it)
                 }
@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             ScanBlocker.BluetoothOff -> {
-                container.scanner.start()
+                scannerViewModel.start()
                 try {
                     bluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
                 } catch (_: SecurityException) {
@@ -107,14 +107,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
             ScanBlocker.LocationOff -> {
-                container.scanner.start()
+                scannerViewModel.start()
                 try {
                     startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                 } catch (_: android.content.ActivityNotFoundException) {
                     hostMessage = "Enable location services in device settings, then tap Start scan."
                 }
             }
-            ScanBlocker.Unsupported -> container.scanner.start()
+            ScanBlocker.Unsupported -> scannerViewModel.start()
         }
     }
 

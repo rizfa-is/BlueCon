@@ -6,12 +6,21 @@ import com.siosin.bluecon.bluetooth.ScanConfig
 import com.siosin.bluecon.bluetooth.ScanState
 import com.siosin.bluecon.bluetooth.StopReason
 import com.siosin.bluecon.bluetooth.proximityZone
-import com.siosin.bluecon.domain.DeviceHistory
-import com.siosin.bluecon.domain.DeviceSort
-import com.siosin.bluecon.domain.DeviceHistoryRepository
-import com.siosin.bluecon.domain.HistoryState
-import com.siosin.bluecon.domain.ScanDevices
-import com.siosin.bluecon.domain.ScannerRepository
+import com.siosin.bluecon.domain.model.DeviceHistory
+import com.siosin.bluecon.domain.model.DeviceSort
+import com.siosin.bluecon.domain.model.HistoryState
+import com.siosin.bluecon.domain.repository.DeviceHistoryRepository
+import com.siosin.bluecon.domain.repository.ScannerRepository
+import com.siosin.bluecon.domain.usecase.history.ClearDeviceHistoryUseCase
+import com.siosin.bluecon.domain.usecase.history.ObserveDeviceHistoryUseCase
+import com.siosin.bluecon.domain.usecase.history.SearchDeviceHistoryUseCase
+import com.siosin.bluecon.domain.usecase.scanner.FilterScannedDevicesUseCase
+import com.siosin.bluecon.domain.usecase.scanner.ObserveScannedDevicesUseCase
+import com.siosin.bluecon.domain.usecase.scanner.ObserveScanStateUseCase
+import com.siosin.bluecon.domain.usecase.scanner.SortScannedDevicesUseCase
+import com.siosin.bluecon.domain.usecase.scanner.StartScanUseCase
+import com.siosin.bluecon.domain.usecase.scanner.StopScanOnBackgroundUseCase
+import com.siosin.bluecon.domain.usecase.scanner.StopScanUseCase
 import com.siosin.bluecon.presentation.ScannerTab
 import com.siosin.bluecon.presentation.ScannerViewModel
 import kotlinx.coroutines.Dispatchers
@@ -42,11 +51,24 @@ class ScannerViewModelTest {
         override suspend fun clear() { state.value = HistoryState() }
     }
 
+    private fun createModel(scanner: ScannerRepository = FakeScanner(), history: DeviceHistoryRepository = FakeHistory()) = ScannerViewModel(
+        startScan = StartScanUseCase(scanner),
+        stopScan = StopScanUseCase(scanner),
+        stopScanOnBackground = StopScanOnBackgroundUseCase(scanner),
+        observeScannedDevices = ObserveScannedDevicesUseCase(scanner),
+        observeScanState = ObserveScanStateUseCase(scanner),
+        observeDeviceHistory = ObserveDeviceHistoryUseCase(history),
+        filterScannedDevices = FilterScannedDevicesUseCase(),
+        sortScannedDevices = SortScannedDevicesUseCase(),
+        searchDeviceHistory = SearchDeviceHistoryUseCase(),
+        clearDeviceHistory = ClearDeviceHistoryUseCase(history),
+    )
+
     @Test
     fun targetSelectionSurvivesMissingSamplesAndReacquiresTheSameAddress() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val scanner = FakeScanner()
-        val model = ScannerViewModel(ScanDevices(scanner), FakeHistory())
+        val model = createModel(scanner)
         try {
             runCurrent()
             model.select("AA")
@@ -75,7 +97,7 @@ class ScannerViewModelTest {
     fun clearingHistoryUpdatesTheObservedUiState() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val history = FakeHistory()
-        val model = ScannerViewModel(ScanDevices(FakeScanner()), history)
+        val model = createModel(history = history)
         try {
             history.state.value = HistoryState(listOf(DeviceHistory("AA", "Beacon", -60, 100)))
             runCurrent()
@@ -83,6 +105,7 @@ class ScannerViewModelTest {
             model.clearHistory()
             runCurrent()
             assertEquals(emptyList(), model.state.value.history.devices)
+            assertEquals(emptyList(), model.state.value.visibleHistory)
         } finally {
             model.viewModelScope.cancel()
             Dispatchers.resetMain()
@@ -94,7 +117,7 @@ class ScannerViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val scanner = FakeScanner()
         val history = FakeHistory()
-        val model = ScannerViewModel(ScanDevices(scanner), history)
+        val model = createModel(scanner, history)
         try {
             model.search("beacon")
             model.searchHistory("bb:02")
@@ -114,6 +137,15 @@ class ScannerViewModelTest {
             assertEquals("beacon", model.state.value.query)
             assertEquals("bb:02", model.state.value.historyQuery)
             assertEquals(listOf("BB", "AA"), model.state.value.visibleDevices.map { it.id })
+            model.setMinimumRssi(-60)
+            assertEquals(listOf("BB"), model.state.value.visibleDevices.map { it.id })
+            scanner.devices.value = scanner.devices.value.map { if (it.id == "AA") it.copy(rawRssi = -40) else it }
+            runCurrent()
+            assertEquals(listOf("AA", "BB"), model.state.value.visibleDevices.map { it.id })
+            model.search("missing")
+            assertEquals(emptyList(), model.state.value.visibleDevices)
+            model.searchHistory("Beacon")
+            assertEquals(listOf("AA:01"), model.state.value.visibleHistory.map { it.id })
         } finally {
             model.viewModelScope.cancel()
             Dispatchers.resetMain()
@@ -125,7 +157,7 @@ class ScannerViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val scanner = FakeScanner()
         val history = FakeHistory()
-        val model = ScannerViewModel(ScanDevices(scanner), history)
+        val model = createModel(scanner, history)
         try {
             scanner.devices.value = listOf(BleDevice("LIVE", "Sensor", -50, -50.0, proximityZone(-50), 200))
             history.state.value = HistoryState(listOf(DeviceHistory("SAVED", "Saved sensor", -70, 100)))
