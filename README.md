@@ -74,6 +74,26 @@ Raw payload sections are expandable. Addresses, UUIDs, and payloads support text
 
 Search saved names or addresses independently of scanner search. Open an entry to inspect its saved RSSI and timestamp. Current advertising details appear if that address is present in the scan cache; otherwise the screen offers scanning. Clear all history with confirmation. The database keeps up to 2,000 addresses.
 
+Each observed MAC address is the primary key of one history entry. A rescan that receives a newer observation for the same address replaces its stored name, RSSI, and last-seen time instead of adding a duplicate. History stores the latest observation per address rather than a separate record for every scan session. A device that rotates its private address can appear as a new entry.
+
+## AI-use disclosure
+
+OpenAI Codex was used as a development assistant on this project. Its contribution included generating and editing implementation code, researching platform behavior, refactoring, authoring test sources, and writing documentation.
+
+| Area | Assistance provided |
+| --- | --- |
+| Research and technical decisions | Reviewed Android BLE permissions across OS versions, advertising fields, RSSI limitations, and resource-management options using platform documentation and scanner references linked below. |
+| Architecture and SDK | Helped separate the reusable Bluetooth SDK from the app, define repository contracts, and refactor application operations into individual MVVM/Clean Architecture use cases. |
+| Android implementation and persistence | Generated and revised scanner lifecycle/error handling, advertising mapping, bounded signal/cache processing, permission flow, and Kotlin Room/KSP persistence. |
+| UI and copy | Implemented and revised Compose scanner, history, device details, proximity radar, search/sorting, accessibility descriptions, English copy, and system light/dark themes. The UI UX Pro Max skill provided design guidance as described under UI decisions. |
+| Validation and documentation | Authored and updated test sources, inspected imports and layer boundaries, checked source diffs/whitespace, and prepared the README and release notes. |
+
+The maintainer supplied the requirements and directed revisions through feedback, including the Android focus, separate SDK, Kotlin persistence, individual use cases, and UI changes. AI-produced code still requires maintainer review and validation on the target devices.
+
+The assistant did not run builds, test runners, or emulators for these changes, following the maintainer's instruction. Source/static checks do not establish build success, runtime correctness, or device compatibility; the pending manual checks are listed under Build and validation.
+
+AI assistance and Python tooling were used during development only. The shipped application and SDK use Kotlin and platform BLE APIs; they do not call an AI service or embed a Python or NDK optimization runtime.
+
 ## BLE indicator research
 
 The detail view uses measurements and advertising fields available from Android's [ScanResult](https://developer.android.com/reference/android/bluetooth/le/ScanResult) and [ScanRecord](https://developer.android.com/reference/android/bluetooth/le/ScanRecord), with scanner workflows informed by [nRF Connect for Android](https://github.com/nordicsemi/Android-nRF-Connect).
