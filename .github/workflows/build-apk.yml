@@ -1,0 +1,143 @@
+name: Build tagged APK
+
+run-name: APK ${{ inputs.tag || github.ref_name }}
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag to build (for example, v1.0.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      sha: ${{ steps.package.outputs.sha }}
+    steps:
+      - name: Validate version tag
+        id: version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo 'Use a version tag such as v1.0.1 or v1.1.0-rc.1.' >&2
+            exit 1
+          fi
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Check out tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/tags/${{ steps.version.outputs.tag }}
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+
+      - name: Install compile SDK and build tools
+        run: |
+          compile_sdk="$(python3 -c 'import tomllib; print(tomllib.load(open("gradle/libs.versions.toml", "rb"))["versions"]["android-compileSdk"])')"
+          sdkmanager "platforms;android-$compile_sdk" 'build-tools;36.0.0'
+
+      - name: Set up Gradle and validate wrapper
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
+        with:
+          cache-read-only: false
+
+      - name: Build APK
+        run: bash ./gradlew :androidApp:assembleDebug --no-daemon --stacktrace --max-workers=2
+
+      - name: Package APK and checksum
+        id: package
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          mkdir -p dist
+          cp androidApp/build/outputs/apk/debug/androidApp-debug.apk "dist/BlueCon-$RELEASE_TAG-debug.apk"
+          cd dist
+          sha256sum "BlueCon-$RELEASE_TAG-debug.apk" > "BlueCon-$RELEASE_TAG-debug.apk.sha256"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          {
+            echo "### APK built: $RELEASE_TAG"
+            echo
+            echo "Source commit: $(git rev-parse HEAD)"
+            echo
+            echo 'Debug-signed APK for device testing. No tests or emulator checks were run.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: BlueCon-${{ steps.version.outputs.tag }}-debug
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+          overwrite: true
+
+  publish:
+    name: Attach APK to release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: BlueCon-${{ needs.build.outputs.tag }}-debug
+          path: dist
+
+      - name: Publish APK and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          SOURCE_SHA: ${{ needs.build.outputs.sha }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            {
+              echo "Android test build from tag $RELEASE_TAG."
+              echo
+              echo "Source commit: $SOURCE_SHA"
+              echo
+              echo 'Download the debug-signed APK and its SHA-256 checksum from Assets.'
+              echo 'This is a test build using the Android debug signing key, not a production-signed package.'
+              echo
+              echo 'GitHub Actions compiled the tagged source. Unit tests, emulator checks, and physical-device validation are not part of this workflow.'
+              echo 'See README.md for setup, architecture, AI-use disclosure, and known limitations.'
+            } > "$RUNNER_TEMP/release-notes.md"
+            prerelease_args=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then prerelease_args+=(--prerelease); fi
+            gh release create "$RELEASE_TAG" --verify-tag --title "BlueCon $RELEASE_TAG" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" "${prerelease_args[@]}"
+          fi
+          gh release upload "$RELEASE_TAG" \
+            "dist/BlueCon-$RELEASE_TAG-debug.apk" \
+            "dist/BlueCon-$RELEASE_TAG-debug.apk.sha256" --clobber
+          {
+            echo '### Download APK'
+            gh release view "$RELEASE_TAG" --json url --jq .url
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -86,11 +86,11 @@ OpenAI Codex was used as a development assistant on this project. Its contributi
 | Architecture and SDK | Helped separate the reusable Bluetooth SDK from the app, define repository contracts, and refactor application operations into individual MVVM/Clean Architecture use cases. |
 | Android implementation and persistence | Generated and revised scanner lifecycle/error handling, advertising mapping, bounded signal/cache processing, permission flow, and Kotlin Room/KSP persistence. |
 | UI and copy | Implemented and revised Compose scanner, history, device details, proximity radar, search/sorting, accessibility descriptions, English copy, and system light/dark themes. The UI UX Pro Max skill provided design guidance as described under UI decisions. |
-| Validation and documentation | Authored and updated test sources, inspected imports and layer boundaries, checked source diffs/whitespace, and prepared the README and release notes. |
+| Validation and documentation | Authored and updated test sources, inspected imports and layer boundaries, checked source diffs/whitespace, prepared documentation/release notes, and configured the tag-triggered GitHub Actions APK build. |
 
 The maintainer supplied the requirements and directed revisions through feedback, including the Android focus, separate SDK, Kotlin persistence, individual use cases, and UI changes. AI-produced code still requires maintainer review and validation on the target devices.
 
-The assistant did not run builds, test runners, or emulators for these changes, following the maintainer's instruction. Source/static checks do not establish build success, runtime correctness, or device compatibility; the pending manual checks are listed under Build and validation.
+The initial implementation was reviewed with source/static checks, without local builds, test runners, or emulators, following the maintainer's instruction. The maintainer subsequently authorized APK builds on GitHub Actions. Workflow runs record their own compilation results; they do not establish runtime correctness or device compatibility. Pending manual checks are listed under Build and validation.
 
 AI assistance and Python tooling were used during development only. The shipped application and SDK use Kotlin and platform BLE APIs; they do not call an AI service or embed a Python or NDK optimization runtime.
 
@@ -160,7 +160,7 @@ Run these yourself:
 .\gradlew.bat :bluetooth-sdk:testAndroidHostTest :shared:testAndroidHostTest
 ```
 
-The debug APK is produced under `androidApp/build/outputs/apk/debug/`. Builds and test execution are left to the project owner as requested. Current validation is source/static review; no device screenshots or runtime-layout verification are claimed.
+The debug APK is produced under `androidApp/build/outputs/apk/debug/`. Local builds and test execution remain under maintainer control. Tagged APK builds run on GitHub Actions as described below. No device screenshots or runtime-layout verification are claimed.
 
 Test sources cover RSSI boundaries, silent-device expiry, clock changes, delayed reports, bounded history/cache behavior, metadata propagation, payload byte formatting, permission policy, individual use cases, and ViewModel selection/history behavior. Domain tests include two-minute scan policy, distinct stop reasons, filtering independent of ordering, deterministic sorting, history search/clear, and virtual-time persistence batching, stop/background flushes, restart timing, and cancellation.
 
@@ -173,6 +173,26 @@ Manual checks to run:
 - Legacy/extended advertisements, absent TX power, empty payloads, and truncated records on supported hardware.
 - Persistence across app restarts, searching history, opening saved details, and clearing history.
 - Light/dark themes, a small phone around 375 dp, landscape, tablet width, largest system text, reduced motion, and TalkBack labels.
+
+## Tagged APK builds on GitHub
+
+The [Build tagged APK workflow](.github/workflows/build-apk.yml) runs when a version tag such as `v1.0.1` or `v1.1.0-rc.1` is pushed. It checks out that exact tag, sets up Java 17 and the compile SDK from the version catalog, validates the Gradle wrapper, and runs `:androidApp:assembleDebug` on GitHub's Ubuntu runner.
+
+After a successful build it uploads `BlueCon-<tag>-debug.apk` and its `.sha256` checksum to the matching GitHub Release, creating the release if needed. Tags with a prerelease suffix produce prereleases. Build artifacts are also available from the Actions run for 30 days; release assets are separate from that retention setting. Failed builds do not publish an APK.
+
+To publish a new version, update `versionName` and increase `versionCode` in `androidApp/build.gradle.kts`, commit the changes, push the branch, then create and push a matching tag. For example, after committing version `1.0.2`:
+
+```powershell
+git push origin master
+git tag -a v1.0.2 -m "BlueCon v1.0.2"
+git push origin v1.0.2
+```
+
+You can also open **Actions → Build tagged APK → Run workflow** on the default branch and enter an existing tag. This builds the original tagged source; it does not move the tag. Reruns replace APK/checksum assets with the same names while preserving existing release notes.
+
+These APKs use Android debug signing for testing and require no signing secrets. Each fresh runner can generate a different debug key, so installing over a build from another run may require uninstalling the old app. Production distribution needs a maintained release keystore and a release-signing workflow. This workflow builds only the APK; it does not run tests or validate Bluetooth behavior on hardware.
+
+The setup follows the official [Android Gradle plugin compatibility requirements](https://developer.android.com/build/releases/agp-9-1-0-release-notes), [Gradle Actions](https://github.com/gradle/actions/tree/main/setup-gradle), and [GitHub artifact documentation](https://github.com/actions/upload-artifact).
 
 ## Limitations
 
