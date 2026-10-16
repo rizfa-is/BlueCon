@@ -58,7 +58,10 @@ jobs:
       - name: Install compile SDK and build tools
         run: |
           compile_sdk="$(python3 -c 'import tomllib; print(tomllib.load(open("gradle/libs.versions.toml", "rb"))["versions"]["android-compileSdk"])')"
-          sdkmanager "platforms;android-$compile_sdk" 'build-tools;36.0.0'
+          sdk_platform="$compile_sdk"
+          # API 37 uses the minor-version package name android-37.0.
+          if (( compile_sdk >= 37 )); then sdk_platform="$compile_sdk.0"; fi
+          sdkmanager "platforms;android-$sdk_platform" 'build-tools;36.0.0'
 
       - name: Set up Gradle and validate wrapper
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6

@@ -176,7 +176,7 @@ Manual checks to run:
 
 ## Tagged APK builds on GitHub
 
-The [Build tagged APK workflow](.github/workflows/build-apk.yml) runs when a version tag such as `v1.0.1` or `v1.1.0-rc.1` is pushed. It checks out that exact tag, sets up Java 17 and the compile SDK from the version catalog, validates the Gradle wrapper, and runs `:androidApp:assembleDebug` on GitHub's Ubuntu runner.
+The [Build tagged APK workflow](.github/workflows/build-apk.yml) runs when a version tag such as `v1.0.1` or `v1.1.0-rc.1` is pushed. It checks out that exact tag, sets up Java 17 and the compile SDK from the version catalog, validates the Gradle wrapper, and runs `:androidApp:assembleDebug` on GitHub's Ubuntu runner. API 37 uses the SDK package name `platforms;android-37.0`.
 
 After a successful build it uploads `BlueCon-<tag>-debug.apk` and its `.sha256` checksum to the matching GitHub Release, creating the release if needed. Tags with a prerelease suffix produce prereleases. Build artifacts are also available from the Actions run for 30 days; release assets are separate from that retention setting. Failed builds do not publish an APK.
 
